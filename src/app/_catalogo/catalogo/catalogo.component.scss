@@ -1,0 +1,40 @@
+app-header{
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw  ;
+  z-index: 10;
+}
+
+app-carosello-novita{
+  position: fixed;
+  top: 0;
+  left: 0;
+}
+
+.menuu{
+  background-color: red;
+  position: fixed;
+  top: 0;
+  left: 0;
+
+  z-index: 99999999999;
+}
+
+p{
+  color: white;
+  // z-index: 999999999999999999999999999999999999;
+  // position: absolute;
+  // top: 0;
+  // left: 0;
+}
+.catalogo-contenuto {
+  position: absolute;
+  // overflow: scroll;
+  height: 100%;
+  top: 0;
+  left: 0;
+  margin-top: 150px;   // spazio sotto header+menu+carosello
+  padding: 0 16px;
+  // overflow: auto;
+}

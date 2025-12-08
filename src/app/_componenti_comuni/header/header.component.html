@@ -1,0 +1,164 @@
+<header>
+  <!-- ░░░ SINISTRA ░░░ solo logo -->
+  <div class="sinistra">
+    <!-- <img src="assets/logo_science_code_x_grande.png" alt="Logo Science Codex" class="logo"> -->
+
+    <!-- menu “Le nostre categorie” SOLO SE LOGGATO -->
+    <ul class="menu-categorie" *ngIf="authCorrente?.tk" (mouseenter)="menuCategorieAperto = true"
+      (mouseleave)="menuCategorieAperto = false">
+
+      <!-- voce principale -->
+      <li class="info-categorie">
+        <img src="assets/pellicola.webp" class="icona-pellicola" alt="" aria-hidden="true">
+        <span class="label-categorie">Le nostre categorie</span>
+        <svg class="icona icona-tendina" viewBox="0 0 24 24">
+          <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" fill="none" />
+        </svg>
+      </li>
+
+      <!-- tendina -->
+      <li class="tendina" [class.aperta]="menuCategorieAperto">
+        <ul class="menu-tendina">
+          <li class="voce-tendina" (click)="onClickCategoria()">Continua a guardare</li>
+          <li class="voce-tendina" (click)="onClickCategoria()">I preferiti</li>
+          <li class="voce-tendina" (click)="onClickCategoria()">I piu visti</li>
+          <li class="separatore-tendina" role="separator" aria-hidden="true"></li>
+          <li class="voce-tendina" (click)="onClickCategoria()">Altro esempio</li>
+        </ul>
+      </li>
+    </ul>
+  </div>
+
+
+  <!-- ░░░ DESTRA ░░░ -->
+  <div class="destra">
+    <!-- SE LOGGATO: categorie (già a sinistra), ricerca, lingua, menu utente (+ eventuale audio) -->
+    <ng-container *ngIf="authCorrente?.tk; else vistaNonLoggato">
+
+      <!-- Ricerca -->
+      <div class="contenitore-ricerca" (mouseenter)="mostraRicerca = true" (mouseleave)="mostraRicerca = false">
+        <input type="text" class="ricerca-barra" [class.aperta]="mostraRicerca" placeholder="Cerca..."
+          aria-label="Cerca">
+        <button class="icona-ricerca" aria-label="Apri ricerca" title="Apri ricerca">
+          <svg width="24" height="24" viewBox="0 0 24 24">
+            <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2" />
+            <line x1="16.65" y1="16.65" x2="21" y2="21" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+          </svg>
+        </button>
+      </div>
+
+      <div class="doppio_audio">
+        <app-bottone-audio></app-bottone-audio>
+
+        <button class="bottone-audio-provisorio" title="Riattiva audio"
+          [style.display]="solo_brawser_blocca ? 'inline-flex' : 'none'" (click)="clickSbloccoProvvisorio($event)">
+          <div class="contenitore-icona" aria-hidden="true">
+            <svg viewBox="0 0 24 24" class="icona" aria-hidden="true" focusable="false">
+              <path d="M3 10v4h4l5 5V5l-5 5H3z"></path>
+              <path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v8.06c1.48-.74 2.5-2.26 2.5-4.03z"></path>
+              <path
+                d="M14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-1 7-4.71 7-8.77s-2.99-7.77-7-8.77z">
+              </path>
+            </svg>
+            <div class="sbarra" aria-hidden="true"></div>
+          </div>
+        </button>
+      </div>
+
+      <div class="lingua_spinner">
+  <button
+    class="pulsante-lingua"
+    (click)="cambiaLingua()"
+    [disabled]="disabilitaLingua || linguaInCambio"
+    [attr.aria-disabled]="(disabilitaLingua || linguaInCambio) ? 'true' : null"
+    [attr.aria-label]="'ui.lingua.button.title' | translate"
+    [title]="'ui.lingua.button.title' | translate">
+    <!-- bandiera italiana -->
+    <img src="assets/it.svg"
+      class="icona-lingua"
+      [class.visibile]="(iconaLingua$ | async) === 'assets/it.svg'"
+      alt="bandierina italiana"
+      aria-hidden="true">
+
+    <!-- bandiera inglese -->
+    <img src="assets/en.svg"
+      class="icona-lingua"
+      [class.visibile]="(iconaLingua$ | async) === 'assets/en.svg'"
+      alt="bandierina inglese"
+      aria-hidden="true">
+  </button>
+
+  <app-spinner *ngIf="linguaInCambio"></app-spinner>
+</div>
+
+
+
+
+
+
+      <!-- Menu utente -->
+      <ul class="menu-utente" (mouseenter)="menuUtenteAperto = true" (mouseleave)="menuUtenteAperto = false">
+        <li class="info-utente">
+          <svg class="icona icona-utente" viewBox="0 0 24 24">
+            <circle cx="12" cy="8" r="4" fill="currentColor" />
+            <path d="M4 20c0-4 4-6 8-6s8 2 8 6" fill="currentColor" />
+          </svg>
+          <span class="nome-utente">Mario Rossi</span>
+          <svg class="icona icona-tendina" viewBox="0 0 24 24">
+            <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" fill="none" />
+          </svg>
+        </li>
+        <li class="tendina" [class.aperta]="menuUtenteAperto">
+          <ul class="menu-tendina">
+            <li class="voce-tendina">Profilo</li>
+            <li class="voce-tendina" (click)="onClickScollegati()">Scollegati</li>
+            <li class="separatore-tendina" role="separator" aria-hidden="true"></li>
+            <li class="voce-tendina">Contattaci</li>
+          </ul>
+        </li>
+      </ul>
+    </ng-container>
+
+    <!-- SE NON LOGGATO: SOLO lingua + login -->
+    <ng-template #vistaNonLoggato>
+      <div class="lingua_spinner">
+  <button
+    class="pulsante-lingua"
+    (click)="cambiaLingua()"
+    [disabled]="disabilitaLingua || linguaInCambio"
+    [attr.aria-disabled]="(disabilitaLingua || linguaInCambio) ? 'true' : null"
+    [attr.aria-label]="'ui.lingua.button.title' | translate"
+    [title]="'ui.lingua.button.title' | translate">
+    <!-- bandiera italiana -->
+    <img src="assets/it.svg"
+      class="icona-lingua"
+      [class.visibile]="(iconaLingua$ | async) === 'assets/it.svg'"
+      alt="bandierina italiana"
+      aria-hidden="true">
+
+    <!-- bandiera inglese -->
+    <img src="assets/en.svg"
+      class="icona-lingua"
+      [class.visibile]="(iconaLingua$ | async) === 'assets/en.svg'"
+      alt="bandierina inglese"
+      aria-hidden="true">
+  </button>
+
+  <app-spinner *ngIf="linguaInCambio"></app-spinner>
+</div>
+
+
+
+
+
+      <button class="pulsante-login" aria-label="Login"
+        [title]="('ui.accesso.titolo.1' | translate) +' ' + ('ui.accesso.titolo.2' | translate)" routerLink="/login"
+        [class.nascosto]="paginaLogin" [attr.aria-disabled]="paginaLogin ? 'true' : null"
+        [innerHTML]="'ui.menu_utente.collegati.label' | translate">
+
+      </button>
+
+    </ng-template>
+  </div>
+
+</header>

@@ -1,0 +1,64 @@
+<div class="contenitore-carosello" *ngIf="immagini.length > 0">
+  <div
+    class="scorrimento-carosello"
+    [style.transform]="stileTrasformazione"
+    [style.transition]="transizioneAttiva ? 'transform 0.5s ease-in-out' : 'none'"
+  >
+    <!-- clone finale (ultima immagine) -->
+    <div class="diapositiva">
+      <img
+        [src]="immagini[immagini.length - 1]"
+        [alt]="descrizioni[immagini.length - 1] || ''"
+      >
+    </div>
+
+    <!-- immagini reali -->
+    <div class="diapositiva" *ngFor="let immagine of immagini; let i = index">
+      <img
+        [src]="immagine"
+        [alt]="descrizioni[i] || ''"
+      >
+    </div>
+
+    <!-- clone iniziale (prima immagine) -->
+    <div class="diapositiva">
+      <img
+        [src]="immagini[0]"
+        [alt]="descrizioni[0] || ''"
+      >
+    </div>
+  </div>
+
+  <!-- comandi manuali -->
+  <div class="comandi-carosello">
+    <div class="riga-alta">
+      <button
+        (click)="vaiIndietro()"
+        [disabled]="scorrimentoInCorso"
+        aria-label="Slide precedente"
+      >
+        &#9664;
+      </button>
+
+      <span class="etichetta-novita">NOVITÀ</span>
+
+      <button
+        (click)="vaiAvanti()"
+        [disabled]="scorrimentoInCorso"
+        aria-label="Slide successiva"
+      >
+        &#9654;
+      </button>
+    </div>
+
+    <div class="riga-bassa">
+      <button
+        *ngFor="let _ of immagini; let i = index"
+        [class.attivo]="i + 1 === indiceCorrente"
+        (click)="selezionaIndice(i)"
+        [disabled]="scorrimentoInCorso"
+        [attr.aria-label]="'Vai alla slide ' + (i + 1) + (descrizioni[i] ? ' - ' + descrizioni[i] : '')"
+      ></button>
+    </div>
+  </div>
+</div>

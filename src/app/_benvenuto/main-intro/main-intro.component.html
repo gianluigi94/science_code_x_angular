@@ -1,0 +1,32 @@
+  <div class="main_intro">
+
+  <p id="cta" [innerHTML]="'ui.main.cta' | translate"></p>
+    <form id="email_form" action="">
+      <input type="email" placeholder="Email">
+      <button type="submit" [innerHTML]="'ui.main.email_button' | translate"></button>
+    </form>
+
+    <div class="container_intro">
+
+      <div id="container_three" class="motivi">
+        <img src="assets/img/tv.webp" [attr.alt]="'ui.cta_1.icon.alt' | translate">
+        <p [innerHTML]="'ui.cta_1' | translate">
+        </p>
+
+      </div>
+
+      <div id="container_one" class="motivi">
+        <img src="assets/img/stelle.webp" [attr.alt]="'ui.cta_2.icon.alt' | translate">
+        <p [innerHTML]="'ui.cta_2' | translate">
+        </p>
+      </div>
+
+      <div id="container_two" class="motivi">
+        <img src="assets/img/pellicola.webp" [attr.alt]="'ui.cta_3.icon.alt' | translate">
+        <p [innerHTML]="'ui.cta_3' | translate">
+        </p>
+      </div>
+
+
+    </div>
+  </div>

@@ -1,0 +1,119 @@
+
+//classe bottone bottone login
+.btn-orange {
+  background: linear-gradient(135deg, #e79c50, #c97a2b);
+  color: white;
+  border: none;
+  padding: 8px 15px;
+  font-size: 16px;
+  font-weight: bold;
+  border-radius: 8px;
+  cursor: pointer;
+  box-shadow:  0 0 10px #999da0;
+  transition: all 0.3s ease;
+  z-index:30;
+
+}
+
+//codice per risolvere un bug su firefox, le ombre davano fastidio, anche in orizontale
+@supports (-moz-appearance:none) {
+  @media (max-width: 800px) {
+    .btn-orange {
+      box-shadow: none !important;
+    }
+  }
+}
+
+@supports (-moz-appearance:none) {
+  @media (orientation: landscape) and (min-aspect-ratio: 7/5) and (max-width: 985px) {
+    .btn-orange {
+      box-shadow: none !important;
+    }
+  }
+}
+
+
+.btn-orange:hover {
+  transform: translateY(-3px);  // Leggero sollevamento del bottone
+}
+
+/* Posizionamento in alto a destra */
+.position-top-right {
+  position: absolute;
+  top: 18px;
+  right: 20px;
+  z-index:40;
+
+}
+
+
+
+
+.flag-icon {
+  width: 24px;
+  height: 24px;
+  z-index: 50;
+
+}
+
+.lang-text {
+  font-size: 18px;
+  font-weight: bold;
+  z-index: 60;
+
+}
+
+.btn-lang:hover {
+  text-decoration: underline;
+}
+
+.transparent-positioned-button {
+  background: none;
+  border: none;
+  position: absolute;
+  top: 26px;
+  right: 110px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: #ffffff;
+  z-index: 70;
+
+
+
+  &:hover {
+    text-decoration: underline;
+  }
+
+  .button-img {
+    width: 24px;
+    height: 24px;
+  }
+}
+
+
+.btn-accessibility {
+  background-color: transparent;
+  border: 2px solid rgb(136, 189, 185);
+  border-radius: 50%;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgb(83, 152, 121);
+  position: absolute;
+  top: 19px;
+  right: 171px;
+  z-index: 80;
+
+}
+.btn-accessibility:hover {
+  background-color: rgba(0,128,0,0.1);
+}
+
+
+

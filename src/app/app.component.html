@@ -1,0 +1,13 @@
+<app-header></app-header>
+
+<app-sfondo></app-sfondo>
+<app-titles-main></app-titles-main>
+<router-outlet></router-outlet>
+<app-toast-container></app-toast-container>
+
+<app-pagina-caricamento *ngIf="(erroreFatale$ | async)
+         || !(traduzioniPronte$ | async)
+         || !(sessioneVerificata$ | async)
+         || !(saturnoPronto$ | async)"
+  [mostraSpinner]="!(erroreFatale$ | async)">
+</app-pagina-caricamento>

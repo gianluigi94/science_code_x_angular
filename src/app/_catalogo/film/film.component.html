@@ -1,0 +1,12 @@
+<ng-container *ngIf="dati.length > 0; else loading">
+  <ul>
+    <li *ngFor="let f of dati">
+      <div>{{ f.descrizione }}</div>
+      <img [src]="f.img_sfondo" [alt]="f.descrizione">
+    </li>
+  </ul>
+</ng-container>
+
+<ng-template #loading>
+  loading...
+</ng-template>

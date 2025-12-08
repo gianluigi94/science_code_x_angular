@@ -1,0 +1,21 @@
+<div class="toast-wrapper">
+  <div
+    class="toast"
+    *ngFor="let t of toasts"
+    [ngClass]="t.tipo"
+  >
+    <span class="toast-testo">
+      {{ t.testo }}
+    </span>
+
+    <!-- Link solo per i toast di sessione -->
+   <a
+  *ngIf="t.azione === 'ripeti_accesso'"
+  href="javascript:void(0)"
+  (click)="onRipetiAccesso($event)"
+  class="toast-link"
+>
+  {{ 'ui.toast.sessione.link' | translate }}
+</a>
+  </div>
+</div>
