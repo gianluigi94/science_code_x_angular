@@ -1,51 +1,93 @@
-<div class="contenitore-carosello" *ngIf="immagini.length > 0">
+<div
+  class="contenitore-carosello"
+  *ngIf="immagini.length > 0"
+  [class.offuscato]="mostraVideo"
+  [class.non-top]="!alTop"
+>
   <div
     class="scorrimento-carosello"
     [style.transform]="stileTrasformazione"
-    [style.transition]="transizioneAttiva ? 'transform 0.5s ease-in-out' : 'none'"
+    [style.transition]="
+      transizioneAttiva ? 'transform 0.5s ease-in-out' : 'none'
+    "
   >
-    <!-- clone finale (ultima immagine) -->
     <div class="diapositiva">
       <img
+        aria-hidden="true"
         [src]="immagini[immagini.length - 1]"
-        [alt]="descrizioni[immagini.length - 1] || ''"
-      >
+        [attr.alt]="
+          'ui.carosello.altSfondo'
+            | translate
+              : {
+                  titolo: titoliAlt[immagini.length - 1] || ''
+                }
+        "
+      />
     </div>
 
-    <!-- immagini reali -->
     <div class="diapositiva" *ngFor="let immagine of immagini; let i = index">
       <img
         [src]="immagine"
-        [alt]="descrizioni[i] || ''"
-      >
+        aria-hidden="true"
+        (load)="segnalaSfondoCaricato(i)"
+        [attr.alt]="
+          'ui.carosello.altSfondo'
+            | translate
+              : {
+                  titolo: titoliAlt[i] || ''
+                }
+        "
+      />
     </div>
 
-    <!-- clone iniziale (prima immagine) -->
     <div class="diapositiva">
       <img
+        aria-hidden="true"
         [src]="immagini[0]"
-        [alt]="descrizioni[0] || ''"
-      >
+        [attr.alt]="
+          'ui.carosello.altSfondo'
+            | translate
+              : {
+                  titolo: titoliAlt[0] || ''
+                }
+        "
+      />
     </div>
   </div>
 
-  <!-- comandi manuali -->
-  <div class="comandi-carosello">
+  <div class="comandi-carosello" [class.rimpiciolito_salito_destra]="!alTop">
     <div class="riga-alta">
       <button
         (click)="vaiIndietro()"
         [disabled]="scorrimentoInCorso"
-        aria-label="Slide precedente"
+        [attr.aria-label]="
+          'ui.carosello.prev_btn.title'
+            | translate : { titolo: getPrevTitolo() }
+        "
+        [attr.title]="
+          'ui.carosello.prev_btn.title'
+            | translate : { titolo: getPrevTitolo() }
+        "
       >
         &#9664;
       </button>
 
-      <span class="etichetta-novita">NOVITÀ</span>
+      <span
+        class="etichetta-novita"
+        [innerHTML]="'ui.carosello.novita.label' | translate"
+      ></span>
 
       <button
         (click)="vaiAvanti()"
         [disabled]="scorrimentoInCorso"
-        aria-label="Slide successiva"
+        [attr.aria-label]="
+          'ui.carosello.next_btn.title'
+            | translate : { titolo: getNextTitolo() }
+        "
+        [attr.title]="
+          'ui.carosello.next_btn.title'
+            | translate : { titolo: getNextTitolo() }
+        "
       >
         &#9654;
       </button>
@@ -57,8 +99,59 @@
         [class.attivo]="i + 1 === indiceCorrente"
         (click)="selezionaIndice(i)"
         [disabled]="scorrimentoInCorso"
-        [attr.aria-label]="'Vai alla slide ' + (i + 1) + (descrizioni[i] ? ' - ' + descrizioni[i] : '')"
+        [attr.aria-label]="
+          'ui.carosello.slide.label'
+            | translate
+              : {
+                  titolo: titoliAlt[i] || ''
+                }
+        "
+        [attr.title]="
+          'ui.carosello.slide.label'
+            | translate
+              : {
+                  titolo: titoliAlt[i] || ''
+                }
+        "
       ></button>
     </div>
+  </div>
+  <span class="sfumatura"></span>
+  <video-js
+    #riproduttore
+    id="video-carosello-novita"
+    class="video-js sovrapposto senza-controlli"
+    [class.nascosto]="!mostraVideo"
+    [style.--durata-fade-visivo]="durataFadeVisivoMs + 'ms'"
+    preload="auto"
+    playsinline
+  >
+    {{ "ui.carosello.video_nosupport" | translate }}
+  </video-js>
+
+  <div class="sinistra-titoli" [class.rimpiciolito_salito_sinistra]="!alTop">
+    <div class="contenitore-titolo" [class.nascosto]="!titoloVisibile">
+      <img
+        aria-hidden="true"
+        class="titolo_locandina"
+        [src]="imgTitoloOverlay"
+        (load)="segnalaTitoloCaricato()"
+        [attr.alt]="
+          'ui.carosello.altTitolo' | translate : { titolo: titoloOverlay || '' }
+        "
+      />
+    </div>
+
+    <p class="sottotitolo" [class.nascosto]="!sottotitoloVisibile">
+      {{ sottotitoloOverlay }}
+      <span
+        class="play"
+        [attr.title]="
+          'ui.carosello.slide_tooltip.title'
+            | translate : { titolo: titoloOverlay || '' }
+        "
+        >&#9658;</span
+      >
+    </p>
   </div>
 </div>

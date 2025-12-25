@@ -4,8 +4,10 @@
     <!-- <img src="assets/logo_science_code_x_grande.png" alt="Logo Science Codex" class="logo"> -->
 
     <!-- menu “Le nostre categorie” SOLO SE LOGGATO -->
-    <ul class="menu-categorie" *ngIf="authCorrente?.tk" (mouseenter)="menuCategorieAperto = true"
-      (mouseleave)="menuCategorieAperto = false">
+    <ul class="menu-categorie"
+  *ngIf="authVisuale?.tk"
+  (mouseenter)="!logoutInCorso && (menuCategorieAperto = true)"
+  (mouseleave)="!logoutInCorso && (menuCategorieAperto = false)">
 
       <!-- voce principale -->
       <li class="info-categorie">
@@ -33,10 +35,12 @@
   <!-- ░░░ DESTRA ░░░ -->
   <div class="destra">
     <!-- SE LOGGATO: categorie (già a sinistra), ricerca, lingua, menu utente (+ eventuale audio) -->
-    <ng-container *ngIf="authCorrente?.tk; else vistaNonLoggato">
+    <ng-container *ngIf="authVisuale?.tk; else vistaNonLoggato">
 
       <!-- Ricerca -->
-      <div class="contenitore-ricerca" (mouseenter)="mostraRicerca = true" (mouseleave)="mostraRicerca = false">
+      <div class="contenitore-ricerca"
+  (mouseenter)="!logoutInCorso && (mostraRicerca = true)"
+  (mouseleave)="!logoutInCorso && (mostraRicerca = false)">
         <input type="text" class="ricerca-barra" [class.aperta]="mostraRicerca" placeholder="Cerca..."
           aria-label="Cerca">
         <button class="icona-ricerca" aria-label="Apri ricerca" title="Apri ricerca">
@@ -97,13 +101,16 @@
 
 
       <!-- Menu utente -->
-      <ul class="menu-utente" (mouseenter)="menuUtenteAperto = true" (mouseleave)="menuUtenteAperto = false">
+      <ul class="menu-utente"
+  (mouseenter)="!logoutInCorso && (menuUtenteAperto = true)"
+  (mouseleave)="!logoutInCorso && (menuUtenteAperto = false)">
         <li class="info-utente">
           <svg class="icona icona-utente" viewBox="0 0 24 24">
             <circle cx="12" cy="8" r="4" fill="currentColor" />
             <path d="M4 20c0-4 4-6 8-6s8 2 8 6" fill="currentColor" />
           </svg>
-          <span class="nome-utente">Mario Rossi</span>
+          <span class="nome-utente">{{ authVisuale?.nome || '' }}</span>
+
           <svg class="icona icona-tendina" viewBox="0 0 24 24">
             <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" fill="none" />
           </svg>
@@ -151,12 +158,15 @@
 
 
 
-      <button class="pulsante-login" aria-label="Login"
-        [title]="('ui.accesso.titolo.1' | translate) +' ' + ('ui.accesso.titolo.2' | translate)" routerLink="/login"
-        [class.nascosto]="paginaLogin" [attr.aria-disabled]="paginaLogin ? 'true' : null"
-        [innerHTML]="'ui.menu_utente.collegati.label' | translate">
-
-      </button>
+      <button class="pulsante-login"
+  aria-label="Login"
+  [title]="('ui.accesso.titolo.1' | translate) +' ' + ('ui.accesso.titolo.2' | translate)"
+  routerLink="/benvenuto/login"
+  [class.preparazione]="!headerPronto"
+  [class.nascosto]="paginaLogin"
+  [attr.aria-disabled]="(paginaLogin || !headerPronto) ? 'true' : null"
+  [innerHTML]="'ui.menu_utente.collegati.label' | translate">
+</button>
 
     </ng-template>
   </div>

@@ -11,24 +11,16 @@ import { UtilityService } from '../_benvenuto/login/_login_service/login_utility
 export class ApiService {
   constructor(private http: HttpClient) {}
 
+  //  protected calcolaRisorsa(risorsa: (string | number)[]): string {
+  //   const server: string = environment.apiBaseUrl;
+  //   const versione: string = 'v1';
 
+  //   // costruiamo i pezzi SENZA slash finale
+  //   const segments = [server, versione, ...risorsa.map(String)];
+  //   const url = segments.join('/');
 
-
-//  protected calcolaRisorsa(risorsa: (string | number)[]): string {
-//   const server: string = environment.apiBaseUrl;
-//   const versione: string = 'v1';
-
-//   // costruiamo i pezzi SENZA slash finale
-//   const segments = [server, versione, ...risorsa.map(String)];
-//   const url = segments.join('/');
-
-//   return url;
-// }
-
-
-
-
-
+  //   return url;
+  // }
 
   // protected calcolaRisorsa(risorsa: (string | number)[]): string {
   //   // const server: string = 'http://localhost/science_codex/public/api';
@@ -41,52 +33,45 @@ export class ApiService {
   //   return url;
   // }
 
+  //questo sotto
+  // protected calcolaRisorsa(risorsa: (string | number)[]): string {
+  //   const server: string = 'http://192.168.1.36/science_codex/public/api';
+  //   const versione: string = 'v1';
 
+  //   // pezzi tipo: http://localhost/science_codex/public/api/v1/film
+  //   const segments = [server, versione, ...risorsa.map(String)];
+  //   const url = segments.join('/');
 
+  //   return url;
+  // }
 
+  //sotto produzione
+  protected calcolaRisorsa(risorsa: (string | number)[]): string {
+    const server: string = 'https://api.sciencecodex.net/api';
+    const versione: string = 'v1';
 
-protected calcolaRisorsa(risorsa: (string | number)[]): string {
-  const server: string = 'http://localhost/science_codex/public/api';
-  const versione: string = 'v1';
+    const segments = [server, versione, ...risorsa.map(String)];
+    const url = segments.join('/');
 
-  // pezzi tipo: http://localhost/science_codex/public/api/v1/film
-  const segments = [server, versione, ...risorsa.map(String)];
-  const url = segments.join('/');
-
-  return url;
-}
-
-
-////////////////////////////////////////////////////////////////////////
-// protected calcolaRisorsa(risorsa: (string | number)[]): string {
-//   const server: string = 'https://api.sciencecodex.net/api';
-//   const versione: string = 'v1';
-
-//   // pezzi tipo: https://api.sciencecodex.net/api/v1/film
-//   const segments = [server, versione, ...risorsa.map(String)];
-//   const url = segments.join('/');
-
-//   return url;
-// }
-
-
- protected richiestaGenerica(
-  risorsa: (string | number)[],
-  tipo: ChiamataHTTP,
-  parametri: Object | null = null
-): Observable<IRispostaServer> {
-  const url = this.calcolaRisorsa(risorsa);
-
-  switch (tipo) {
-    case 'GET':
-      const options = parametri ? { params: parametri as any } : {};
-      return this.http.get<IRispostaServer>(url, options);
-
-    default:
-      return this.http.get<IRispostaServer>(url);
+    return url;
   }
-}
 
+  protected richiestaGenerica(
+    risorsa: (string | number)[],
+    tipo: ChiamataHTTP,
+    parametri: Object | null = null
+  ): Observable<IRispostaServer> {
+    const url = this.calcolaRisorsa(risorsa);
+
+    switch (tipo) {
+      case 'GET':
+        const options = parametri ? { params: parametri as any } : {};
+        return this.http.get<IRispostaServer>(url, options);
+
+      default:
+        return this.http.get<IRispostaServer>(url);
+    }
+  }
 
   public getTipologieIndirizzi(): Observable<IRispostaServer> {
     const risorsa: string[] = ['categorie'];
@@ -105,42 +90,42 @@ protected calcolaRisorsa(risorsa: (string | number)[]): string {
   }
 
   public getLoginFase2(
-  hashUtente: string,
-  hashPassword: string,
-  collegato: boolean
-): Observable<IRispostaServer> {
-  const risorsa: string[] = ['accedi', hashUtente, hashPassword];
-  const parametri = collegato ? { collegato: '1' } : {};
-  return this.richiestaGenerica(risorsa, 'GET', parametri);
-}
+    hashUtente: string,
+    hashPassword: string,
+    collegato: boolean
+  ): Observable<IRispostaServer> {
+    const risorsa: string[] = ['accedi', hashUtente, hashPassword];
+    const parametri = collegato ? { collegato: '1' } : {};
+    return this.richiestaGenerica(risorsa, 'GET', parametri);
+  }
 
+  public login(
+    utente: string,
+    password: string,
+    restaCollegato: boolean
+  ): Observable<IRispostaServer> {
+    const utenteNorm = utente.trim().toLowerCase();
+    const hashUtente: string = UtilityService.hash(utenteNorm);
+    const hashPassword: string = UtilityService.hash(password);
 
-    public login(
-  utente: string,
-  password: string,
-  restaCollegato: boolean
-): Observable<IRispostaServer> {
-  const utenteNorm = utente.trim().toLowerCase();
-  const hashUtente: string = UtilityService.hash(utenteNorm);
-  const hashPassword: string = UtilityService.hash(password);
+    const controllo$ = this.getLoginFase1(hashUtente).pipe(
+      take(1),
+      tap((x) => console.log('DATI', x)),
+      map((rit: IRispostaServer): string => {
+        const sale: string = rit.data.sale;
+        const passwordNascosta = UtilityService.nascondiPassword(
+          hashPassword,
+          sale
+        );
+        return passwordNascosta;
+      }),
+      concatMap((passwordNascosta: string) => {
+        return this.getLoginFase2(hashUtente, passwordNascosta, restaCollegato);
+      })
+    );
 
-  const controllo$ = this.getLoginFase1(hashUtente).pipe(
-    take(1),
-    tap(x => console.log('DATI', x)),
-    map((rit: IRispostaServer): string => {
-      const sale: string = rit.data.sale;
-      const passwordNascosta = UtilityService.nascondiPassword(hashPassword, sale);
-      return passwordNascosta;
-    }),
-    concatMap((passwordNascosta: string) => {
-      return this.getLoginFase2(hashUtente, passwordNascosta, restaCollegato);
-    })
-  );
-
-  return controllo$;
-}
-
-
+    return controllo$;
+  }
 
   public getElencoFilm(): Observable<IRispostaServer> {
     const risorsa: string[] = ['film'];
@@ -152,5 +137,23 @@ protected calcolaRisorsa(risorsa: (string | number)[]): string {
     return this.richiestaGenerica(risorsa, 'GET');
   }
 
+  //  getVnovita(): Observable<IRispostaServer> {
+  //     return this.http.get<IRispostaServer>('http://localhost:8000/api/v1/novita');
+  //   }
+
+  getVnovita(): Observable<IRispostaServer> {
+    const risorsa: string[] = ['novita'];
+    return this.richiestaGenerica(risorsa, 'GET');
+  }
+
+  public logout(): Observable<IRispostaServer> {
+  const risorsa: (string | number)[] = ['logout'];
+  return this.richiestaGenerica(risorsa, 'GET');
+}
+
+public getTraduzioniLingua(codiceLingua: string): Observable<Record<string, string>> {
+  const url = this.calcolaRisorsa(['traduzioni-lingua', codiceLingua]);
+  return this.http.get<Record<string, string>>(url);
+}
 
 }

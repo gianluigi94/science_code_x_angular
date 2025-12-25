@@ -13,9 +13,9 @@
       transparent,
       transparent,
       transparent,
-      rgba(0, 0, 0, 0.186),
-      rgba(0, 0, 0, 0.344),
-      rgba(0, 0, 0, 0.748)
+      rgba(213, 13, 13, 0.037),
+      rgba(18, 2, 28, 0.344),
+      rgba(13, 1, 18, 0.748)
     ),
     linear-gradient(
       to bottom,
@@ -29,7 +29,7 @@
         to right,
         transparent,
         transparent,
-        rgba(0, 0, 0, 0.089),
+        rgba(0, 0, 0, 0.173),
         black
       ),
       linear-gradient(
@@ -46,4 +46,8 @@
   position: relative;
   height: 105vh;
   width: 100%;
+}
+:host-context(html.scrollable) #saturno-scrolle,
+:host-context(body.scrollable) #saturno-scrolle {
+  height: 100vh;
 }

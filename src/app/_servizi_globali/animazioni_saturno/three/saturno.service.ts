@@ -11,8 +11,9 @@ import { PerformanceService } from '../../performance.service';
 import { SaturnoPosizioniService } from '../saturno_posizioni.service';
 import { Router } from '@angular/router';
 import { SaturnoRouteAnimazioniService } from '../gsap/saturno-route-animazioni.service';
-import { BehaviorSubject } from 'rxjs';
-
+import { CaricamentoCaroselloService } from 'src/app/_catalogo/carosello-novita/carosello_services/caricamento-carosello.service';
+import { ToastService } from 'src/app/_servizi_globali/toast.service';
+import { SaturnoStatoService } from '../saturno-stato.service';
 //Serve per calcolare la posizione nello spazio
 const vertexShader = /* glsl */ `
   varying vec3 vPosition;
@@ -109,12 +110,17 @@ void main() {
 
 @Injectable({ providedIn: 'root' })
 export class SaturnoService {
+  saturnoPronto$ = this.saturnoStatoService.saturnoPronto$;
 
-saturnoPronto$ = new BehaviorSubject<boolean>(false);
   private scenaInizializzata: boolean = false;
   private firstRenderDone = false;
+
+  // 🔹 NUOVO: serve per non rifare l'animazione di /catalogo ad ogni rientro
+  private catalogoGiaAnimato: boolean = false;
+
   // Configurazioni per i gruppi di particelle (asteroidi)
   private groupsConfig = [
+
     {
       innerRadius: 1.34,
       outerRadius: 1.35,
@@ -201,13 +207,18 @@ saturnoPronto$ = new BehaviorSubject<boolean>(false);
   private sceneService: SceneService,
   private diskService: DiskService,
   private particleGroupService: AsteroidiParticleGroupService,
+  private toastService: ToastService,
   private animateService: AnimateService,
   private asteroidiMaterialService: AsteroidiMaterialService,
   private performanceService: PerformanceService,
+  private saturnoStatoService: SaturnoStatoService,
   private saturnoPosizioniService: SaturnoPosizioniService,
   private router: Router,
-  private saturnoRouteAnimazioniService: SaturnoRouteAnimazioniService,
+
+    private saturnoRouteAnimazioniService: SaturnoRouteAnimazioniService,
+  private caricamentoCaroselloService: CaricamentoCaroselloService,
 ) {
+
   this.performanceService.isLowEndPC$.subscribe((isLowEnd) => {
     if (isLowEnd || this.isMobileOrTablet()) {
       this.reduceParticles();
@@ -272,8 +283,10 @@ private distruggiSaturno(): void {
   this.camera = null;
   this.renderer = null;
 
-  this.firstRenderDone = false;          // 👈 reset
-  this.saturnoPronto$.next(false);
+  this.firstRenderDone = false;
+this.saturnoStatoService.reset();
+this.catalogoGiaAnimato = false;
+
 }
 
 
@@ -318,9 +331,21 @@ public spegniSaturno(): void {
   /**
    * Carica la texture del pianeta Saturno in una Promise.
    */
-  private loadPlanetTexture(): Promise<THREE.Texture> {
+ // Carica la texture del pianeta Saturno in una Promise.
+private loadPlanetTexture(): Promise<THREE.Texture> {
     const textureLoader = new THREE.TextureLoader();
     return new Promise((resolve, reject) => {
+      // Verifica se la texture è già stata caricata in localStorage
+      const textureCacheHit = localStorage.getItem('saturnoTextureLoaded');
+
+      if (textureCacheHit) {
+        console.log('NON PRIMA VOLTA: La texture di Saturno è stata caricata dalla cache.');
+      } else {
+        console.log('PRIMA VOLTA: Caricamento texture di Saturno per la prima volta.');
+        // Impostiamo la flag per non ricaricare la texture nelle future visite, anche se il browser viene riaperto
+        localStorage.setItem('saturnoTextureLoaded', 'true');
+      }
+
       textureLoader.load(
         'assets/texture/saturno.webp',
         (texture) => resolve(texture),
@@ -328,17 +353,55 @@ public spegniSaturno(): void {
         (error) => reject(error)
       );
     });
-  }
+}
+
 
   /**
    * Esegue l'inizializzazione della scena di Saturno, caricando tutte le texture
    * (Saturno + Asteroidi) prima di mostrare qualsiasi cosa.
    */
+private attendiCaroselloPronto(timeoutMs: number = 12000): Promise<void> {
+  return new Promise((resolve) => {
+    if (this.caricamentoCaroselloService.caroselloPronto$.value) return resolve();
+
+    const sub = this.caricamentoCaroselloService.caroselloPronto$.subscribe((ok) => {
+      if (!ok) return;
+      try { sub.unsubscribe(); } catch {}
+      resolve();
+    });
+
+    setTimeout(() => {
+      try { sub.unsubscribe(); } catch {}
+      resolve();
+    }, timeoutMs);
+  });
+}
+
 public initializeSaturn(usaAnimazioniWelcome: boolean = true): Promise<void> {
+
 
   return new Promise((resolve, reject) => {
 
 if (this.scenaInizializzata && this.scene && this.camera && this.renderer) {
+
+    const url = this.router.url;
+
+
+
+
+if (url.startsWith('/catalogo') && this.catalogoGiaAnimato) {
+  this.animateService.fadeOutSaturnoESfondo(0);
+  this.animateService.enablePageScroll();
+  this.spegniSaturno();
+  this.animateService.pauseClearcoat();
+
+
+
+  resolve();
+  return;
+}
+
+
   const container = document.getElementById('three-container');
   if (!container) {
     console.error('Contenitore non trovato: three-container');
@@ -350,94 +413,107 @@ if (this.scenaInizializzata && this.scene && this.camera && this.renderer) {
     container.appendChild(this.renderer.domElement);
   }
 
- const url = this.router.url;
-
   const durata = 0.85;
   const durataCatalogo = 1.6;
 
- if (url.startsWith('/login')) {
-  // 🔹 titolo: da centrato → alto-sinistra + X arancione
-  this.animateService.animateTitoloVersoAltoGlobal();
-  this.animateService.setXNormale();
+  if (url.startsWith('/benvenuto/login')) {
+    // 🔹 titolo: da centrato → alto-sinistra + X arancione
+    this.animateService.animateTitoloVersoAltoGlobal();
+    this.animateService.setXNormale();
 
-  this.saturnoRouteAnimazioniService.animaVerso(
-    this.scene,
-    'LOGIN_LATERALE',
-    durata,
-    this.directionalLight || undefined
-  );
+    this.saturnoRouteAnimazioniService.animaVerso(
+      this.scene,
+      'LOGIN_LATERALE',
+      durata,
+      this.directionalLight || undefined
+    );
 
-} else if (url === '/' || url.startsWith('/welcome')) {
-  // 🔹 Rientro nella pagina di benvenuto con scena già costruita:
-  //    - titolo di nuovo centrale
-  //    - X in versione GIF
-  //    - sottotitolo + scritta scroll di nuovo visibili,
-  //      così gli ScrollTrigger possono fare il "reverse" morbido
-  this.animateService.setTitoloCentraleGlobal();
-  this.animateService.setXGif();
+ } else if (url === '/benvenuto' || url.startsWith('/benvenuto/')) {
+    // 🔹 Rientro nella pagina di benvenuto con scena già costruita:
+    //    - titolo di nuovo centrale
+    //    - X in versione GIF
+    //    - sottotitolo + scritta scroll di nuovo visibili,
+    //      così gli ScrollTrigger possono fare il "reverse" morbido
+    this.animateService.setTitoloCentraleGlobal();
+    this.animateService.setXGif();
 
-} else if (url.startsWith('/catalogo')) {
+  } else if (url.startsWith('/catalogo')) {
 
-  const anticipoMs = 400; // qualche ms prima della fine
+  const anticipoMs = 400;
 
   if (this.animateService.isTitoloInPosizioneAlta()) {
-    // saturno è già “alto”, lo porto giù e anticipo di poco il fade
     const durataCatalogo = 1.6;
 
-    // fade-out leggermente prima della fine dell’animazione GSAP
-    setTimeout(() => {
-      this.animateService.fadeOutSaturnoESfondo(1.25);
-    }, durataCatalogo * 1000 - anticipoMs);
+    this.attendiCaroselloPronto().finally(() => {
 
-    this.saturnoRouteAnimazioniService.animaVerso(
-      this.scene!,
-      'CATALOGO_NASCOSTO',
-      durataCatalogo,
-      this.directionalLight || undefined,
-      () => {
-        // qui ormai è tutto invisibile
-        this.spegniSaturno();
-        this.animateService.pauseClearcoat();
-      }
-    );
+      this.toastService.chiudi('accesso_ok');
+
+       setTimeout(() => {
+  this.animateService.fadeOutSaturnoESfondo(1.25, () => {
+    this.animateService.enablePageScroll();
+  });
+  this.animateService.enablePageScroll();
+  this.animateService.fadeOutSaturnoESfondo(1.25);
+ }, durataCatalogo * 1000 - anticipoMs);
+
+
+      this.saturnoRouteAnimazioniService.animaVerso(
+        this.scene!,
+        'CATALOGO_NASCOSTO',
+        durataCatalogo,
+        this.directionalLight || undefined,
+        () => {
+          this.spegniSaturno();
+          this.animateService.pauseClearcoat();
+          this.catalogoGiaAnimato = true;
+        }
+      );
+    });
+
   } else {
-    this.animateService.setTitoloCentraleGlobal();
+      this.animateService.setTitoloCentraleGlobal();
 
-    const durataCatalogo = 1.6;
+      const durataCatalogo = 1.6;
 
-    // anche qui anticipo il fade di qualche ms
-    setTimeout(() => {
-      this.animateService.fadeOutSaturnoESfondo(1.25);
-    }, durataCatalogo * 1000 - anticipoMs);
+      this.attendiCaroselloPronto().finally(() => {
 
-    this.saturnoRouteAnimazioniService.animaVerso(
-      this.scene!,
-      'CATALOGO_NASCOSTO',
-      durataCatalogo,
-      this.directionalLight || undefined,
-      () => {
-        this.spegniSaturno();
-        this.animateService.pauseClearcoat();
+        setTimeout(() => {
+          this.animateService.fadeOutSaturnoESfondo(1.25, () => {
+            this.animateService.enablePageScroll();
 
-        this.animateService.setXNormale();
-        this.animateService.animateTitoloVersoAltoGlobal();
-        // niente fadeOutSaturnoESfondo qui: è già partito col setTimeout
-      }
-    );
+            // SOLO ORA: coperture sparite -> ora parte il timer locandina
+          });
+        }, durataCatalogo * 1000 - anticipoMs);
+
+        this.saturnoRouteAnimazioniService.animaVerso(
+          this.scene!,
+          'CATALOGO_NASCOSTO',
+          durataCatalogo,
+          this.directionalLight || undefined,
+          () => {
+            this.spegniSaturno();
+            this.animateService.pauseClearcoat();
+
+            this.animateService.setXNormale();
+            this.animateService.animateTitoloVersoAltoGlobal();
+            // niente fadeOutSaturnoESfondo qui: è già partito col setTimeout
+
+            // 🔹 segno che il catalogo è già stato animato una volta
+            this.catalogoGiaAnimato = true;
+          }
+        );
+      });
+    }
   }
-}
-
-
 
 
   this.attivaHoverMouse();
   this.startFixedFPSLoop();
 
-
-
   resolve();
   return;
 }
+
 
 
 
@@ -495,13 +571,14 @@ if (!usaAnimazioniWelcome) {
   lightIntensity = 2.8;
 
   const url = this.router.url;
-  if (url.startsWith('/login')) {
-    lightZ = 0.1001;     // LOGIN_LATERALE
-  } else if (url === '/' || url.startsWith('/welcome')) {
-    lightZ = 10.1001;    // WELCOME_ALTO
-  } else {
-    lightZ = 5.1001;     // WELCOME_BASSO / fallback
-  }
+  if (url.startsWith('/benvenuto/login')) {
+  lightZ = 0.1001;     // LOGIN_LATERALE
+} else if (url === '/benvenuto' || url.startsWith('/benvenuto/')) {
+  lightZ = 10.1001;    // WELCOME_ALTO
+} else {
+  lightZ = 5.1001;     // WELCOME_BASSO / fallback
+}
+
 }
 
 
@@ -535,14 +612,21 @@ this.planetMesh = planetMesh;
 // ✅ 1) Parto SEMPRE da WELCOME_ALTO come pose di base
 this.saturnoPosizioniService.applicaPoseAScena(scene, 'WELCOME_ALTO');
 
-// ✅ 2) In base alla route decido che animazione fare (solo per LOGIN qui)
 const url = this.router.url;
+const isLoginRoute = url.startsWith('/benvenuto/login');
+
 const isWelcomeRoute =
-  usaAnimazioniWelcome && (url === '/' || url.startsWith('/welcome'));
+  usaAnimazioniWelcome &&
+  (url === '/benvenuto' || url.startsWith('/benvenuto/')) &&
+  !isLoginRoute;
+
 const isCatalogRoute =
   usaAnimazioniWelcome && url.startsWith('/catalogo');
 
-if (url.startsWith('/login')) {
+const ricaricaCatalogo = usaAnimazioniWelcome && this.isReloadCatalogo();
+
+
+if (url.startsWith('/benvenuto/login')) {
   const durata = 0.9;
 
   // 🔹 titolo: da centrato → alto-sinistra + X arancione
@@ -704,47 +788,69 @@ if (isWelcomeRoute) {
     this.particleGroups
   );
 } else if (isCatalogRoute) {
-  // catalogo: reveal, poi
-  // 2º tempo → saturno in basso + titolo in alto
-  // 3º tempo → fade out scena (leggermente anticipato)
-  this.animateService.setTitoloCentraleGlobal();
 
-  const durataCatalogo = 1.6;
-  const anticipoMs = 500; // ~200ms prima della fine
+  /* ✅ CASO 1: reload su /catalogo -> stato finale subito (niente animazione) */
+  if (ricaricaCatalogo) {
 
-  this.animateService.animateAll(
-    firstElement,
-    xElement,
-    this.directionalLight,
-    this.particleGroups,
-    () => {
-      // ⬅️ onLightComplete: finiti luce + accelerazione + scontro titolo
+    // stato UI finale
+    this.animateService.setXNormale();
+    this.animateService.setTitoloAltoGlobal();
 
-      // SECONDO TEMPO: titolo in alto + X normale
-      this.animateService.setXNormale();
-      this.animateService.animateTitoloVersoAltoGlobal();
+    // posa finale della scena (saturno "in basso")
+    this.saturnoPosizioniService.applicaPoseAScena(scene, 'CATALOGO_NASCOSTO');
 
-      // TERZO TEMPO (visivo): fade out leggermente prima della fine della discesa
-      setTimeout(() => {
-        // durata corta così il fade finisce quasi esattamente quando finisce l’animazione GSAP
-        this.animateService.fadeOutSaturnoESfondo(1.2);
-      }, durataCatalogo * 1000 - anticipoMs);
+    // componenti finali gia' spariti (come dopo l'animazione)
+    this.animateService.fadeOutSaturnoESfondo(0);
+    this.animateService.enablePageScroll();
 
-      // Saturno verso il basso
-      this.saturnoRouteAnimazioniService.animaVerso(
-        scene,
-        'CATALOGO_NASCOSTO',
-        durataCatalogo,
-        this.directionalLight || undefined,
-        () => {
-          // qui ormai è tutto invisibile
-          this.spegniSaturno();
-          this.animateService.pauseClearcoat();
-        }
-      );
-    }
-    // ⬅️ nessun onComplete
-  );
+    // IMPORTANTISSIMO: il loader dipende da saturnoPronto$
+    this.firstRenderDone = true;
+this.saturnoStatoService.setPronto();
+
+
+    // non distruggo la scena, ma spengo loop e effetti come nello stato finale
+    this.spegniSaturno();
+    this.animateService.pauseClearcoat();
+
+    // segno che catalogo e' gia' "finito"
+    this.catalogoGiaAnimato = true;
+
+  } else {
+
+    /* ✅ CASO 2: / -> (diorottamento) -> /catalogo (navigate) -> resta identico a prima */
+    this.animateService.setTitoloCentraleGlobal();
+
+    const durataCatalogo = 1.6;
+    const anticipoMs = 500;
+
+    this.animateService.animateAll(
+      firstElement,
+      xElement,
+      this.directionalLight,
+      this.particleGroups,
+      () => {
+        this.animateService.setXNormale();
+        this.animateService.animateTitoloVersoAltoGlobal();
+
+        setTimeout(() => {
+          this.animateService.fadeOutSaturnoESfondo(1.2);
+          this.animateService.enablePageScroll();
+        }, durataCatalogo * 1000 - anticipoMs);
+
+        this.saturnoRouteAnimazioniService.animaVerso(
+          scene,
+          'CATALOGO_NASCOSTO',
+          durataCatalogo,
+          this.directionalLight || undefined,
+          () => {
+            this.spegniSaturno();
+            this.animateService.pauseClearcoat();
+            this.catalogoGiaAnimato = true;
+          }
+        );
+      }
+    );
+  }
 }
 
 
@@ -791,13 +897,11 @@ resolve();
   // Render della scena
   this.renderer.render(this.scene, this.camera);
 
-  // 👇 PRIMO FRAME: SOLO QUI diciamo che Saturno è davvero pronto
   if (!this.firstRenderDone) {
-    this.firstRenderDone = true;
-    if (!this.saturnoPronto$.value) {
-      this.saturnoPronto$.next(true);
-    }
-  }
+  this.firstRenderDone = true;
+  this.saturnoStatoService.setPronto();
+}
+
 
   // Rotazione del pianeta
   if (this.planetMesh) {
@@ -987,5 +1091,15 @@ public flashErrorLight(): void {
   }, durata);
 }
 
+private isReloadCatalogo(): boolean {
+  try {
+    const nav = performance.getEntriesByType('navigation') as any[];
+    const tipo = nav && nav[0] && nav[0].type ? String(nav[0].type) : '';
+    const path = (window.location.pathname || '').split('?')[0].split('#')[0];
+    return (tipo === 'reload' && path === '/catalogo');
+  } catch {
+    return false;
+  }
+}
 
 }

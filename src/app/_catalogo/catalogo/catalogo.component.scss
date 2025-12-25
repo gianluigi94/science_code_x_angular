@@ -10,14 +10,16 @@ app-carosello-novita{
   position: fixed;
   top: 0;
   left: 0;
+
 }
+
 
 .menuu{
   background-color: red;
   position: fixed;
   top: 0;
   left: 0;
-
+  // opacity: 0;
   z-index: 99999999999;
 }
 
@@ -29,7 +31,9 @@ p{
   // left: 0;
 }
 .catalogo-contenuto {
+  overflow: hidden;
   position: absolute;
+  pointer-events: none;
   // overflow: scroll;
   height: 100%;
   top: 0;

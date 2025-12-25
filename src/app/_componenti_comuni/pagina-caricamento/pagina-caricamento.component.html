@@ -1,6 +1,7 @@
-<!-- pagina-caricamento.component.html -->
-<div class="loading-overlay">
+<div class="loading-overlay" [class.avvio-catalogo]="stileAvvioCatalogo">
   <app-spinner *ngIf="mostraSpinner"></app-spinner>
-  <app-sfondo></app-sfondo>
-  <span class="sfumatura"></span>
+
+  <app-sfondo *ngIf="!stileAvvioCatalogo && !isFirefox"></app-sfondo>
+
+  <span class="sfumatura" *ngIf="!isFirefox" [class.rossa]="stileAvvioCatalogo"></span>
 </div>

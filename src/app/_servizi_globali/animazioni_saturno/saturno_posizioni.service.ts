@@ -50,8 +50,8 @@ export class SaturnoPosizioniService {
       },
     },
     CATALOGO_NASCOSTO: {
-      position: { x: 4.8, y: -3.4, z: 0.25 },
-      scale: { x: 0.3 , y: 0.3, z: 0.3 },
+      position: { x: 4.8, y: -3, z: 0.25 },
+      scale: { x: 0.01 , y: 0.01, z: 0.01 },
       rotation: {
         x: THREE.MathUtils.degToRad(-10),
         y: THREE.MathUtils.degToRad(150),

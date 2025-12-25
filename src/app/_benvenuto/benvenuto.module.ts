@@ -7,7 +7,7 @@ import { BenvenutoRoutingModule } from './benvenuto-routing.module';
 import { WelcomeComponent } from './welcome/welcome.component';
 import { LoginComponent } from './login/login.component';
 import { ComponentiComuniModule } from '../_componenti_comuni/componenti-comuni.module';
-
+import { SaturnoModule } from '../_componenti_comuni/saturno/saturno.module';
 @NgModule({
   declarations: [
     WelcomeComponent,
@@ -17,8 +17,9 @@ import { ComponentiComuniModule } from '../_componenti_comuni/componenti-comuni.
     CommonModule,
     BenvenutoRoutingModule,
     ComponentiComuniModule,
+    SaturnoModule,
     ReactiveFormsModule,
-    TranslateModule, // 👈 e questa riga
+    TranslateModule,
   ],
 })
 export class BenvenutoModule {}

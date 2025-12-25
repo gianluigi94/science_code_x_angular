@@ -1,53 +1,94 @@
+// import { Injectable } from '@angular/core';
+// import { HttpClient } from '@angular/common/http';
+// import { TranslateService } from '@ngx-translate/core';
+// import { BehaviorSubject } from 'rxjs'; // 👈 aggiungi questo
+
+// @Injectable({
+//   providedIn: 'root',
+// })
+// export class TraduzioniService {
+//   urlBaseTraduzioni = 'http://localhost:8000/api/v1/traduzioni-lingua';
+//   //  urlBaseTraduzioni = 'https://api.sciencecodex.net/api/v1/traduzioni-lingua';
+
+//   traduzioniCaricate: { [codiceLingua: string]: boolean } = {};
+
+//   // 👇 false all'inizio → le traduzioni non sono ancora pronte
+//   traduzioniInizialiCaricate$ = new BehaviorSubject<boolean>(false);
+
+//   constructor(
+//     private http: HttpClient,
+//     private translateService: TranslateService
+//   ) {}
+
+//   caricaTraduzioni(codiceLingua: string): void {
+//     // se quella lingua è già stata caricata, basta fare lo switch
+//     if (this.traduzioniCaricate[codiceLingua]) {
+//       this.translateService.use(codiceLingua);
+
+//       // se per qualche motivo è la prima volta che arriviamo qui
+//       if (!this.traduzioniInizialiCaricate$.value) {
+//         this.traduzioniInizialiCaricate$.next(true);
+//       }
+//       return;
+//     }
+
+//     // prima volta: chiama backend, salva e poi usa
+//     this.http
+//       .get<Record<string, string>>(`${this.urlBaseTraduzioni}/${codiceLingua}`)
+//       .subscribe((traduzioni) => {
+//         this.translateService.setTranslation(codiceLingua, traduzioni, true);
+//         this.traduzioniCaricate[codiceLingua] = true;
+//         this.translateService.use(codiceLingua);
+
+//         // 👇 segna che le traduzioni iniziali sono pronte
+//         if (!this.traduzioniInizialiCaricate$.value) {
+//           this.traduzioniInizialiCaricate$.next(true);
+//         }
+//       });
+//   }
+
+//   haTraduzioniInCache(codiceLingua: string): boolean {
+//     return !!this.traduzioniCaricate[codiceLingua];
+//   }
+// }
+
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
 import { TranslateService } from '@ngx-translate/core';
-import { BehaviorSubject } from 'rxjs'; // 👈 aggiungi questo
+import { BehaviorSubject, Observable, of, map, take, tap } from 'rxjs';
+import { ApiService } from 'src/app/_servizi_globali/api.service';
 
-@Injectable({
-  providedIn: 'root',
-})
+@Injectable({ providedIn: 'root' })
 export class TraduzioniService {
-  urlBaseTraduzioni = 'http://localhost:8000/api/v1/traduzioni-lingua';
-  //  urlBaseTraduzioni = 'https://api.sciencecodex.net/api/v1/traduzioni-lingua';
-
   traduzioniCaricate: { [codiceLingua: string]: boolean } = {};
-
-  // 👇 false all'inizio → le traduzioni non sono ancora pronte
   traduzioniInizialiCaricate$ = new BehaviorSubject<boolean>(false);
 
-  constructor(
-    private http: HttpClient,
-    private translateService: TranslateService
-  ) {}
+  constructor(private api: ApiService, private translateService: TranslateService) {}
 
-  caricaTraduzioni(codiceLingua: string): void {
-    // se quella lingua è già stata caricata, basta fare lo switch
+  // ✅ Carica SOLO in cache (NON fa use)
+  assicuraTraduzioni$(codiceLingua: string): Observable<void> {
     if (this.traduzioniCaricate[codiceLingua]) {
-      this.translateService.use(codiceLingua);
-
-      // se per qualche motivo è la prima volta che arriviamo qui
-      if (!this.traduzioniInizialiCaricate$.value) {
-        this.traduzioniInizialiCaricate$.next(true);
-      }
-      return;
+      if (!this.traduzioniInizialiCaricate$.value) this.traduzioniInizialiCaricate$.next(true);
+      return of(void 0);
     }
 
-    // prima volta: chiama backend, salva e poi usa
-    this.http
-      .get<Record<string, string>>(`${this.urlBaseTraduzioni}/${codiceLingua}`)
-      .subscribe((traduzioni) => {
+    return this.api.getTraduzioniLingua(codiceLingua).pipe(
+      take(1),
+      tap((traduzioni) => {
         this.translateService.setTranslation(codiceLingua, traduzioni, true);
         this.traduzioniCaricate[codiceLingua] = true;
-        this.translateService.use(codiceLingua);
+        if (!this.traduzioniInizialiCaricate$.value) this.traduzioniInizialiCaricate$.next(true);
+      }),
+      map(() => void 0)
+    );
+  }
 
-        // 👇 segna che le traduzioni iniziali sono pronte
-        if (!this.traduzioniInizialiCaricate$.value) {
-          this.traduzioniInizialiCaricate$.next(true);
-        }
-      });
+  // ✅ Applica la lingua QUANDO DECIDI TU
+  usaLingua(codiceLingua: string): void {
+    this.translateService.use(codiceLingua);
   }
 
   haTraduzioniInCache(codiceLingua: string): boolean {
     return !!this.traduzioniCaricate[codiceLingua];
   }
 }
+

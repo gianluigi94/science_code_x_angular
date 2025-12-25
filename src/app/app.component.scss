@@ -11,11 +11,12 @@ app-sfondo {
 }
 
 app-header {
+  pointer-events: none;
   position: fixed;
   top: 0;
   left: 0;
   width: 100vw;
-  z-index: 15;
+  z-index: 22;
 }
 
 app-toast-container{

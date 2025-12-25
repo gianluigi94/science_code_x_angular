@@ -15,26 +15,38 @@ export class LoginUscitaGuard implements CanDeactivate<LoginComponent> {
 ) {}
 
 
-  canDeactivate(component: LoginComponent): boolean | Promise<boolean> {
+  canDeactivate(
+  component: LoginComponent,
+  _currentRoute: any,
+  _currentState: any,
+  nextState?: any
+): boolean | Promise<boolean> {
+
     // se stai uscendo per andare al catalogo dopo login OK → niente animazione qui
     if (component.saltaAnimazioneUscita) {
       return true;
     }
 
     // cerco di capire dove stai andando (freccia indietro → di solito / o /welcome)
-    const nav = this.router.getCurrentNavigation();
-    const targetUrl = nav?.finalUrl?.toString() ?? '';
+   const targetUrl =
+  (nextState?.url as string) ||
+  this.router.getCurrentNavigation()?.finalUrl?.toString() ||
+  '';
 
-   if (targetUrl === '/' || targetUrl.startsWith('/welcome')) {
+const vaInBenvenuto =
+  targetUrl === '/' ||
+  targetUrl === '' ||
+  targetUrl === '/benvenuto' ||
+  targetUrl.startsWith('/benvenuto');
+
+if (vaInBenvenuto) {
   const scene = this.saturnoService.getScene();
   const light = this.saturnoService.getDirectionalLight();
 
-  // 🔹 titolo: da alto-sinistra → centrato (come scroll indietro)
   this.animateService.setXGif();
   this.animateService.animateTitoloVersoCentroGlobal(1.25, 0);
 
   if (scene) {
-    // durata allineata a quella del login (1.25)
     this.saturnoRouteAnimazioniService.animaVerso(
       scene,
       'WELCOME_ALTO',
@@ -43,6 +55,7 @@ export class LoginUscitaGuard implements CanDeactivate<LoginComponent> {
     );
   }
 }
+
 
 
     // in parallelo parte anche l'uscita del login (GSAP)

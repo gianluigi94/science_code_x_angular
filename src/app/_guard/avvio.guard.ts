@@ -32,18 +32,24 @@ export class AvvioGuard implements CanActivate {
       console.log('FRONT END LOGGATO: ' + (autenticato ? 'trsue' : 'faslse'));
     }
 
-    const url = state.url; // es: '/', '/catalogo', '/catalogo/film'
+const url = state.url; // es: '/benvenuto', '/benvenuto/login', '/catalogo'
 
-    if (autenticato) {
-      if (url === '/' || url === '' || url.startsWith('/login')) {
-        return this.router.parseUrl('/catalogo');
-      }
-      return true;
-    } else {
-      if (url.startsWith('/catalogo')) {
-        return this.router.parseUrl('/');
-      }
-      return true;
-    }
+if (autenticato) {
+  if (url === '/' || url === '' || url.startsWith('/benvenuto')) {
+    return this.router.parseUrl('/catalogo');
+  }
+  return true;
+} else {
+  if (url.startsWith('/catalogo')) {
+    return this.router.parseUrl('/benvenuto');
+  }
+  // opzionale "safety": se qualcuno va su '/' a mano
+  if (url === '/' || url === '') {
+    return this.router.parseUrl('/benvenuto');
+  }
+  return true;
+}
+
+
   }
 }

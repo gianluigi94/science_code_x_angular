@@ -38,17 +38,26 @@
   padding: 0;
   margin: 0;
   box-sizing: border-box;
+  scrollbar-width: thin;
+  scrollbar-color: #e5ae09 transparent;
 }
 body,
 html {
-  // overflow: hidden;
+  overflow: hidden;
   height: 100dvh;
-  background-color: black;
+  background-color: #04011a;
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
   position: relative;
 }
+
+html.scrollable,
+body.scrollable {
+    overflow: visible;
+
+}
+
 
 app-main {
   position: fixed;
@@ -67,3 +76,6 @@ app-main {
 strong {
   color: rgb(199, 174, 128);
 }
+
+
+

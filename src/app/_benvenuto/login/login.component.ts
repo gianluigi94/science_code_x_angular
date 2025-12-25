@@ -9,10 +9,8 @@ import {
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import {
   BehaviorSubject,
-  catchError,
   Observable,
   Observer,
-  of,
   Subject,
   take,
   takeUntil,
@@ -229,9 +227,21 @@ export class LoginComponent implements OnInit, OnDestroy, AfterViewInit {
           this.authService.settaObsAuth(auth);
           this.authService.scriviAuthSuLocalStorage(auth);
 
-          // dopo login ok → niente animazione in uscita
-          this.saltaAnimazioneUscita = true;
-          this.router.navigateByUrl('/catalogo');
+  const testo = this.translate.instant('ui.menu_utente.collegati.riuscito');
+     this.toastService.chiudi('login_errore');
+   this.toastService.chiudi('accesso_ok');
+ this.toastService.successoConSpinner(testo, 'accesso_ok');
+
+
+
+
+this.saltaAnimazioneUscita = true;
+
+setTimeout(() => {
+  this.router.navigateByUrl('/catalogo');
+}, 0);
+
+
         } else {
           this.saturnoService.flashErrorLight();
         }
@@ -243,9 +253,9 @@ export class LoginComponent implements OnInit, OnDestroy, AfterViewInit {
         const messaggio = this.translate.instant(chiave);
 
         if (chiave === 'ui.toast.error.login.max_acces') {
-          this.toastService.allarm(messaggio);
+          this.toastService.mostra(messaggio, 'allarm', false, undefined, 'login_errore');
         } else {
-          this.toastService.errore(messaggio);
+         this.toastService.mostra(messaggio, 'error', false, undefined, 'login_errore');
         }
 
         this.saturnoService.flashErrorLight();

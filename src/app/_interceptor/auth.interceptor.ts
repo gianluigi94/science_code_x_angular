@@ -80,9 +80,12 @@ export class AuthInterceptor implements HttpInterceptor {
         if (req.url.includes('/accedi')) {
           return throwError(() => err);
         }
+const msgLower = (rawMsg || '').toLowerCase();
+const eTokenScadutoMascheratoDa500 =
+  err.status === 500 && (msgLower.includes('expired token') || msgLower.includes('token scaduto'));
 
         // 🔹 gestione sessione (unica fonte di verità)
-        if (err.status === 401 || err.status === 403) {
+        if (err.status === 401 || err.status === 403 || eTokenScadutoMascheratoDa500) {
 
           const haTokenIniziale = this.statoSessione.haTokenIniziale;
           const giaConfermata = this.statoSessione.sessioneGiaConfermata;

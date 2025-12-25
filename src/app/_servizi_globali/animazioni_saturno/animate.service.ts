@@ -283,12 +283,12 @@ public setXNormale(): void {
   const xHigh = document.querySelector('#x_hegh');
 
   if (xLow) {
-    xLow.classList.remove('x', 'x-low');
-    xLow.classList.add('x-orange');
+       xLow.classList.add('x-orange');      // tengo SEMPRE 'x'
+   xLow.classList.remove('x-low');      // opzionale: se vuoi spegnere la gif
   }
   if (xHigh) {
-    xHigh.classList.remove('x', 'x-high');
-    xHigh.classList.add('x-orange');
+       xHigh.classList.add('x-orange');
+   xHigh.classList.remove('x-high');
   }
 }
 
@@ -316,7 +316,7 @@ public setXGif(): void {
   onLightComplete?: () => void,
   onComplete?: () => void
 ): Promise<gsap.core.Timeline> {
-
+this.preparaHeaderPrimaDelLoader(firstElement, xElement);
   await this.waitForLoadingOverlayToDisappear();
 
   const mainTimeline = gsap.timeline({
@@ -464,7 +464,7 @@ private getTitoloAltoConfig(): {
   } else if (window.innerWidth <= 1000) {
     topValue = 8;
   } else {
-    topValue = 11;
+    topValue = 12;
   }
 
   const softOffset = ((1 - scaleValue) * 100) / 2;
@@ -613,7 +613,6 @@ public setTitoloCentrale(title: HTMLElement): void {
   this.titoloInPosizioneAlta = false;
 }
 
-// 🔹 NUOVO: centra il titolo GLOBALMENTE come in welcome
 public setTitoloCentraleGlobal(): void {
   const title = document.querySelector('.title-container') as HTMLElement | null;
   const subtitle = document.querySelector('.subtitle') as HTMLElement | null;
@@ -631,25 +630,104 @@ public setTitoloCentraleGlobal(): void {
   this.titoloInPosizioneAlta = false;
 }
 
-public fadeOutSaturnoESfondo(durata: number = 1): void {
+/* ✅ NUOVO: stato finale immediato (senza animazione) */
+public setTitoloAltoGlobal(): void {
+  const title = document.querySelector('.title-container') as HTMLElement | null;
+  const subtitle = document.querySelector('.subtitle') as HTMLElement | null;
+  const scrol = document.querySelector('.scrol') as HTMLElement | null;
+
+  if (subtitle) {
+    gsap.killTweensOf(subtitle);
+    gsap.set(subtitle, { opacity: 0, display: 'none' });
+  }
+
+  if (scrol) {
+    gsap.killTweensOf(scrol);
+    gsap.set(scrol, { opacity: 0 });
+  }
+
+  if (title) {
+    title.classList.add('titolo-alto');
+    this.setTitoloAlto(title);
+  }
+
+  this.titoloInPosizioneAlta = true;
+}
+
+
+public fadeOutSaturnoESfondo(
+  durata: number = 1,
+  onComplete?: () => void
+): void {
   const saturno = document.querySelector('app-saturno') as HTMLElement | null;
   const sfondo = document.querySelector('app-sfondo') as HTMLElement | null;
 
+  const tl = gsap.timeline({
+    onComplete: () => {
+      if (onComplete) {
+        onComplete();
+      }
+    },
+  });
+
   if (saturno) {
-    gsap.to(saturno, {
-      opacity: 0,
-      duration: durata,
-      ease: 'power2.out',
-    });
+    tl.to(
+      saturno,
+      {
+        opacity: 0,
+        duration: durata,
+        ease: 'power2.out',
+      },
+      0
+    );
   }
 
   if (sfondo) {
-    gsap.to(sfondo, {
-      opacity: 0,
-      duration: durata,
-      ease: 'power2.out',
-    });
+    tl.to(
+      sfondo,
+      {
+        opacity: 0,
+        duration: durata,
+        ease: 'power2.out',
+      },
+      0
+    );
   }
+}
+
+
+public enablePageScroll(): void {
+  const html = document.documentElement;
+  const body = document.body;
+
+  html.classList.add('scrollable');
+  body.classList.add('scrollable');
+}
+
+public disablePageScroll(): void {
+  const html = document.documentElement;
+  const body = document.body;
+
+  html.classList.remove('scrollable');
+  body.classList.remove('scrollable');
+}
+
+private preparaHeaderPrimaDelLoader(
+  firstElement: HTMLElement | null,
+  xElement: HTMLElement | null
+): void {
+  try {
+    const xAfterRule = CSSRulePlugin.getRule('.x::after');
+    if (xAfterRule) gsap.set(xAfterRule, { opacity: 0 });
+  } catch {}
+
+  try {
+    if (firstElement) gsap.set(firstElement, { opacity: 0 });
+  } catch {}
+
+  try {
+    if (xElement) gsap.set(xElement, { opacity: 0 });
+  } catch {}
 }
 
 

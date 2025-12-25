@@ -5,9 +5,20 @@
 <router-outlet></router-outlet>
 <app-toast-container></app-toast-container>
 
-<app-pagina-caricamento *ngIf="(erroreFatale$ | async)
+<app-pagina-caricamento
+  *ngIf="!caricamentoDisabilitato && (
+         forzaLoaderExtra
+         || (erroreFatale$ | async)
          || !(traduzioniPronte$ | async)
          || !(sessioneVerificata$ | async)
-         || !(saturnoPronto$ | async)"
-  [mostraSpinner]="!(erroreFatale$ | async)">
+         || !(saturnoPronto$ | async)
+         || (deveCaricareImmaginiCarosello && !(caroselloPronto$ | async))
+       )"
+  [mostraSpinner]="!(erroreFatale$ | async) && !loaderAvvioCatalogo"
+  [stileAvvioCatalogo]="loaderAvvioCatalogo"
+  [isFirefox]="isFirefox">
 </app-pagina-caricamento>
+
+
+
+

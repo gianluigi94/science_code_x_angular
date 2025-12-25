@@ -42,7 +42,7 @@ ngAfterViewInit(): void {
       this.isLowPerf = isLowEnd || this.isMobileOrTablet();
 
       // ora il template ha già deciso se mostrare .x-low o .x-high
-      const xElement = this.elementRef.nativeElement.querySelector('.x') as HTMLElement;
+      const xElement = this.elementRef.nativeElement.querySelector('[data-titolo-x]') as HTMLElement;
 
       this.animateService.animateAll(
         firstElement,

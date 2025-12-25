@@ -5,28 +5,34 @@ import { AvvioGuard } from './_guard/avvio.guard';
 const routes: Routes = [
   {
     path: '',
+    pathMatch: 'full',
+    redirectTo: 'benvenuto',
+  },
+  {
+    path: 'benvenuto',
     canActivate: [AvvioGuard],
     loadChildren: () =>
-      import('./_benvenuto/benvenuto.module').then(
-        (m) => m.BenvenutoModule
-      ),
+      import('./_benvenuto/benvenuto.module').then((m) => m.BenvenutoModule),
   },
   {
     path: 'catalogo',
     canActivate: [AvvioGuard],
     loadChildren: () =>
-      import('./_catalogo/catalogo.module').then(
-        (m) => m.CatalogoModule
-      ),
+      import('./_catalogo/catalogo.module').then((m) => m.CatalogoModule),
   },
   {
     path: '**',
-    redirectTo: '',
+    redirectTo: 'benvenuto',
   },
 ];
 
 @NgModule({
-  imports: [RouterModule.forRoot(routes)],
+  imports: [
+    RouterModule.forRoot(routes, {
+      initialNavigation: 'enabledBlocking',
+    }),
+  ],
   exports: [RouterModule],
 })
 export class AppRoutingModule {}
+

@@ -314,6 +314,13 @@ h3 {
 }
 
 .title-link {
+  display: flex;              // oppure: display: block;
+  justify-content: center;
+  align-items: center;
+
+  width: 100%;
+  max-width: 60%;             // spostato qui (prima stava su .main-title)
+
   text-decoration: none;
   color: inherit;
 }
