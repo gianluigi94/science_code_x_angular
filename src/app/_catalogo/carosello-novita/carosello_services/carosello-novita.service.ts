@@ -52,14 +52,8 @@ export class CaroselloNovitaService {
         // eseguo in parallelo le due chiamate e creo un unico stream con entrambi i risultati
         map(([filmList, serieList]) => {
           // trasformo le due liste in un elenco unico di novita'
-          const filmNovita = filmList.filter(
-            // filtro i film per tenere solo quelli marcati come novita' e con immagine di sfondo
-            (f) => f.novita && f.img_sfondo // richiedo sia il flag novita' sia la presenza dell'immagine di sfondo
-          );
-          const serieNovita = serieList.filter(
-            // filtro le serie per tenere solo quelle marcate come novita' e con immagine di sfondo
-            (s) => s.novita && s.img_sfondo // richiedo sia il flag novita' sia la presenza dell'immagine di sfondo
-          );
+                  const filmNovita = filmList.filter((f) => !!f.novita);
+ const serieNovita = serieList.filter((s) => !!s.novita);
 
           const elenco: NovitaItem[] = [
             ...filmNovita,
@@ -141,14 +135,12 @@ export class CaroselloNovitaService {
     if (!this.infoNovitaCachePerLingua[lang] || forceRefresh) { // se non ho ancora la cache per quella lingua oppure mi chiedono refresh
       this.infoNovitaCachePerLingua[lang] = this.api.getVnovita().pipe( // salvo in cache lo stream che recupera le novità dal backend
         map((risp: IRispostaServer) => { // trasformo la risposta del server in una struttura più comoda
-          const elenco = risp.data as { // estraggo i dati e li tratto come array di record con i campi attesi
-            descrizione: string;
-            titolo: string;
-            img_titolo: string;
-            sottotitolo: string;
-            trailer: string;
-            lingua: string;
-          }[];
+           const elenco = risp.data as {
+   descrizione: string;
+   titolo: string;
+   sottotitolo: string;
+   lingua: string;
+ }[];
 
           const mappa: Record<string, NovitaInfo> = {}; // preparo una mappa vuota che riempirò con descrizione->info
 
@@ -157,12 +149,13 @@ export class CaroselloNovitaService {
             if (!item.descrizione) continue; // salto gli elementi senza descrizione perché non posso usarli come chiave
 
             if (!mappa[item.descrizione]) { // se non ho ancora inserito info per questa descrizione
-              mappa[item.descrizione] = { // creo l’oggetto NovitaInfo per questa descrizione
-                titolo: item.titolo || '', // salvo il titolo (o stringa vuota se manca)
-                img_titolo: item.img_titolo || '', // salvo l'immagine del titolo
-                sottotitolo: item.sottotitolo || '', // salvo il sottotitolo
-                trailer: item.trailer || '', // salvo il trailer
-              };
+              const slug = this.slugDaDescrizione(item.descrizione);
+ mappa[item.descrizione] = {
+   titolo: item.titolo || '',
+   img_titolo: this.urlTitolo(lang, slug),
+   sottotitolo: item.sottotitolo || '',
+   trailer: this.urlTrailer(lang, slug),
+ };
             }
           }
 
@@ -174,5 +167,19 @@ export class CaroselloNovitaService {
 
     return this.infoNovitaCachePerLingua[lang]; // restituisco l’observable in cache per la lingua richiesta
   }
+ private slugDaDescrizione(descrizione: string): string {
+   const d = String(descrizione || '').trim();
+   return d.replace(/^film\./i, '').replace(/^serie\./i, '');
+ }
+
+ private urlTitolo(lang: string, slug: string): string {
+   return `assets/titoli_${lang}/titolo_${lang}_${slug}.webp`;
+ }
+
+ private urlTrailer(lang: string, slug: string): string {
+   const folder = lang === 'it' ? 'mp4-trailer-it' : 'mp4-trailer-en';
+   const prefix = lang === 'it' ? 'trailer_ita_' : 'trailer_en_';
+   return `https://d2kd3i5q9rl184.cloudfront.net/${folder}/${prefix}${slug}.mp4`;
+ }
 
 }

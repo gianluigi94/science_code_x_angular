@@ -42,7 +42,9 @@ export class CaroselloDatiUtility {
         // Mi iscrivo allo stream delle novita
         next: (elencoOrdinato: NovitaItemMin[]) => {
           // Gestisco l'elenco ordinato quando arriva
-          ctx.immagini = elencoOrdinato.map((x) => x.img_sfondo); // Estraggo gli url degli sfondi
+           ctx.immagini = elencoOrdinato.map((x) =>
+   CaroselloDatiUtility.urlSfondoDaDescrizione(x.descrizione || '')
+ );
           ctx.descrizioni = elencoOrdinato.map((x) => x.descrizione || ''); // Estraggo le descrizioni con fallback a stringa vuota
 
           ctx.sfondiCaricati = {}; // Resetto lo stato di caricamento sfondi
@@ -199,4 +201,11 @@ export class CaroselloDatiUtility {
       (i: number) => !!ctx.sfondiCaricati[i]
     ); // Controllo che per ogni indice critico io abbia un true nella mappa
   }
+
+   static urlSfondoDaDescrizione(descrizione: string): string {
+   const d = String(descrizione || '').trim();
+   const slug = d.replace(/^film\./i, '').replace(/^serie\./i, '');
+   return `assets/carosello_locandine/carosello_${slug}.webp`;
+ }
+
 }

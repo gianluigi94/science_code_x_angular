@@ -132,20 +132,20 @@ export class CatalogoComponent implements OnInit, AfterViewInit, OnDestroy {
 
 
   costruisciMappaLocandineCategorie(codiceLingua: string, tipo: TipoContenuto): Record<string, string[]> {
-    const raccolta: Record<string, Array<{ img: string; tipo: string; idContenuto: string }>> = {};
+    const raccolta: Record<string, Array<{ slug: string; tipo: string; idContenuto: string }>> = {};
 
     for (const r of (this.categorieLocandineDb || [])) {
       if (String(r?.lingua) !== String(codiceLingua)) continue;
       if (tipo !== 'film_serie' && String(r?.tipo) !== String(tipo)) continue;
 
       const idCategoria = String(r?.id_categoria || '');
-      const img = String(r?.img_locandina || '');
+      const slug = String(r?.slug || '');
       const tipoRiga = String(r?.tipo || '');
       const idContenuto = String(r?.id_contenuto || '');
-      if (!idCategoria || !img) continue;
+      if (!idCategoria || !slug) continue;
 
       if (!raccolta[idCategoria]) raccolta[idCategoria] = [];
-      raccolta[idCategoria].push({ img, tipo: tipoRiga, idContenuto });
+      raccolta[idCategoria].push({ slug, tipo: tipoRiga, idContenuto });
     }
 
     const mappa: Record<string, string[]> = {};
@@ -160,7 +160,7 @@ export class CatalogoComponent implements OnInit, AfterViewInit, OnDestroy {
         });
       }
 
-      mappa[idCategoria] = lista.map(x => x.img);
+      mappa[idCategoria] = lista.map(x => this.costruisciUrlLocandina(codiceLingua, x.slug));
     }
 
     return mappa;
@@ -218,5 +218,9 @@ export class CatalogoComponent implements OnInit, AfterViewInit, OnDestroy {
     if (val === 'film') return '/catalogo/film';
     if (val === 'serie') return '/catalogo/serie';
     return '/catalogo/film-serie';
+  }
+
+    costruisciUrlLocandina(codiceLingua: string, slug: string): string {
+    return `assets/locandine_${codiceLingua}/locandina_${codiceLingua}_${slug}.webp`;
   }
 }
