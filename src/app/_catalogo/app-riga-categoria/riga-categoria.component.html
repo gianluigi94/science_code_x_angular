@@ -6,7 +6,13 @@
 
   <div class="fascia-carosello" [style.transform]="trasformazioneWrapper">
 
-    <div class="locandina" #elementoLocandina *ngFor="let src of locandine; let i = index">
+     <div
+   class="locandina"
+   #elementoLocandina
+   *ngFor="let src of locandine; let i = index"
+   (mouseenter)="onMouseEnterLocandina()"
+   (mouseleave)="onMouseLeaveLocandina()"
+ >
       <span class="numero">{{ (indicePagina * locandineVisibili) + i + 1 }}</span>
 
       <div class="sparisci">

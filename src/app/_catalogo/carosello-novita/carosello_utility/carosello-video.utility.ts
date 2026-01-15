@@ -58,7 +58,7 @@ export class CaroselloVideoUtility {
     if (!ctx.player) return; // Esco se il player non e' pronto
     if (!ctx.trailers || ctx.trailers.length === 0) return; // Esco se non ho trailer disponibili
 
-    if (!ctx.alTop || ctx.pausaPerScroll || ctx.pausaPerBlur) {
+    if (!ctx.alTop || ctx.pausaPerScroll || ctx.pausaPerBlur || ctx.pausaPerHover) {
       // Fuori top o in pausa scroll/blur non devo mai avviare video
       ctx.mostraVideo = false; // Mi assicuro che il video resti nascosto
       return;

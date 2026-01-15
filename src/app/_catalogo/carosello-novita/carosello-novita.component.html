@@ -14,6 +14,8 @@
     "
   >
 
+
+
   <!-- immagine con alt dinamico alla lingua -->
    <!-- CLONE DELL'ULTIMA SLIDE PER EFFETTO INFINITO -->
     <div class="diapositiva">
@@ -62,6 +64,14 @@
       />
     </div>
   </div>
+
+    <div
+   class="overlay-hover"
+   [class.visibile]="mostraImmagineHover"
+   aria-hidden="true"
+ >
+   <img [src]="immagineHoverFissa" alt="" />
+ </div>
 
   <!-- comanidi del carosello che cambiano stile se non sono in cima -->
   <div class="comandi-carosello" [class.rimpiciolito_salito_destra]="!alTop">

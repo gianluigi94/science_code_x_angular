@@ -18,15 +18,18 @@ import { CaroselloAudioUtility } from './carosello_utility/carosello-audio.utili
 import { CaroselloPlayerUtility } from './carosello_utility/carosello-player.utility';
 import { CaroselloScrollStateUtility } from './carosello_utility/carosello-scroll-state.utility';
 import { CaroselloCopertureUtility } from './carosello_utility/carosello-coperture.utility';
+import { HoverLocandinaService } from '../app-riga-categoria/categoria_services/hover-locandina.service';
 
 @Component({
   selector: 'app-carosello-novita',
   templateUrl: './carosello-novita.component.html',
   styleUrls: ['./carosello-novita.component.scss'],
 })
-export class CaroselloNovitaComponent
-  implements OnInit, OnDestroy, AfterViewInit
-{
+export class CaroselloNovitaComponent implements OnInit, OnDestroy, AfterViewInit {
+
+  pausaPerHover = false;
+     mostraImmagineHover = false;
+   immagineHoverFissa = 'assets/carosello_locandine/carosello_abbraccia_il_vento.webp';
   alTop = true; // Tengo traccia se sono 'in cima' alla pagina (stato iniziale: sì)
   pausaPerScroll = false; // Segno se devo mettere in pausa per via dello scroll (inizialmente no)
   SCROLL_THRESHOLD = 10; // Imposto la soglia (in px) entro cui considero la pagina 'in cima'
@@ -113,7 +116,8 @@ export class CaroselloNovitaComponent
     private caroselloNovitaService: CaroselloNovitaService,
     private cambioLinguaService: CambioLinguaService,
     private translate: TranslateService,
-    private caricamentoCaroselloService: CaricamentoCaroselloService
+    private caricamentoCaroselloService: CaricamentoCaroselloService,
+    private servizioHoverLocandina: HoverLocandinaService
   ) {}
 
 /**
@@ -127,6 +131,34 @@ export class CaroselloNovitaComponent
  */
   ngOnInit(): void {
     this.caricaDati(); // Avvio il caricamento dati iniziali
+
+
+     this.subs.add(
+       this.servizioHoverLocandina.osserva().subscribe((attivo) => {
+         this.mostraImmagineHover = attivo;
+
+         if (attivo) {
+                   this.pausaPerHover = true;
+
+          this.fermaAvvioPendete();   // blocco avvii trailer pendenti
+          this.numeroSequenzaAvvio++; // invalido eventuali avvii in corso
+
+          this.mostraVideo = false; // nascondo subito il video sotto overlay
+
+          this.sfumaGuadagnoVerso(0, this.durataFadeAudioMs).finally(() => {
+            try { this.player.pause(); } catch {}
+            try { this.player.currentTime(0); } catch {}
+          });
+         } else {
+                     this.pausaPerHover = false;
+
+          // tolgo overlay e riparto con la logica normale (solo se posso)
+          if (this.alTop && !this.pausaPerScroll && !this.pausaPerBlur && !this.pausaPerHover) {
+             this.avviaTrailerCorrenteDopo(this.RITARDO_MOSTRA_PLAYER_MS);
+           }
+         }
+       })
+     );
 
     this.subs.add(
       // Registro questa subscription per poterla disiscrivere in destroy
