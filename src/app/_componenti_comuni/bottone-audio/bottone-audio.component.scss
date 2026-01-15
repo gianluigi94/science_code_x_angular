@@ -1,4 +1,3 @@
-// stile per il bottone audio
 .bottone-audio {
   background: #01090b;
   border: none;
@@ -35,7 +34,6 @@
     height: 100%;
     pointer-events: none;
 
-    // sbarra rossa in diagonale per indicare disattivato
     &::after {
       content: "";
       position: absolute;

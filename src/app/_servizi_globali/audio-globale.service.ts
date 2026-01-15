@@ -4,7 +4,6 @@ import { BehaviorSubject } from 'rxjs';
 @Injectable({ providedIn: 'root' })
 export class AudioGlobaleService {
   chiaveStorage = 'audio_consentito';
-    // decidi il default qui: true = sbloccato (senza sbarra), false = bloccato (con sbarra)
   valorePredefinito = true;
   statoCorrente = this.valorePredefinito;
   sorgenteStato = new BehaviorSubject<boolean>(false);
@@ -16,7 +15,6 @@ export class AudioGlobaleService {
     this.statoCorrente = iniziale;
     this.sorgenteStato.next(iniziale);
 
-    // sincronizza anche tra TAB/finestre diverse del browser
     window.addEventListener('storage', (evento) => {
       if (evento.key === this.chiaveStorage) {
         const nuovo = evento.newValue === 'true';
@@ -24,7 +22,6 @@ export class AudioGlobaleService {
         this.sorgenteStato.next(nuovo);
       }
     });
-       // Alla prima interazione dell'utente, rimuovi l'overlay provvisorio
    const sbloccaDopoPrimoGesto = () => this.setSoloBrowserBlocca(false);
    window.addEventListener('pointerdown', sbloccaDopoPrimoGesto, { once: true });
    window.addEventListener('keydown',      sbloccaDopoPrimoGesto, { once: true });
@@ -36,7 +33,6 @@ export class AudioGlobaleService {
      try {
       const v = localStorage.getItem(this.chiaveStorage);
       if (v === 'true' || v === 'false') return v === 'true';
-      // se manca la chiave, inizializzala col default scelto
       localStorage.setItem(this.chiaveStorage, String(this.valorePredefinito));
       return this.valorePredefinito;
      } catch {

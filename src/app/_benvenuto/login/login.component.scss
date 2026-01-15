@@ -6,21 +6,19 @@
   gap: 12px;
   margin-left: 62%;
 
-  /* label sopra che simulano le vecchie (Utente, Password) */
   .label-sopra {
     font-size: 24px;
     width: fit-content;
     font-weight: 500;
     font-family: "Quantico", serif;
-    color: aliceblue; /* bianco normale */
+    color: aliceblue;
     font-weight: bolder;
   }
 
   .label-sopra.is-invalid {
-    color: red !important; /* rosso quando sbagliato */
+    color: red !important;
   }
 
-  /* wrapper generico campo con floating label */
   .campo-form {
     position: relative;
     width: fit-content;
@@ -33,7 +31,7 @@
   }
 
   .password-wrapper #password {
-    padding-right: 42px; /* spazio per l'icona */
+    padding-right: 42px;
   }
 
   .toggle-password {
@@ -57,17 +55,15 @@
     outline: none;
   }
 
-  /* stile base label floating (dentro il campo) */
   label {
     font-size: 24px;
     width: fit-content;
     font-weight: 500;
     font-family: "Quantico", serif;
-    color: #4f5050; /* grigio normale */
+    color: #4f5050;
     font-weight: bolder;
   }
 
-  /* label dei campi con floating (Utente + Password) */
   .campo-form label {
     position: absolute;
     left: 10px;
@@ -79,7 +75,6 @@
       color 0.15s ease;
   }
 
-  /* input utente e password */
   #password,
   #utente {
     width: 350px;
@@ -88,12 +83,11 @@
     border: none;
     border-radius: 7px;
     font-size: 18px;
-    padding: 18px 10px 0 10px; /* spazio sopra per la label rimpicciolita */
+    padding: 18px 10px 0 10px;
     color: rgb(205, 205, 205);
     box-shadow: 0 0 8px #999da0;
   }
 
-  /* quando il campo è in focus o NON è vuoto → label va in alto e si rimpicciolisce */
   .campo-form input:focus ~ label,
   .campo-form input:not(:placeholder-shown) ~ label {
     top: 4px;
@@ -101,7 +95,6 @@
     font-size: 12px;
   }
 
-  /* se il campo è invalido la label fluttuante diventa rosso scuro */
   .campo-form label.is-invalid {
     color: rgb(137, 11, 11) !important;
   }
@@ -156,7 +149,6 @@
     padding-left: 32px;
   }
 
-  /* box nero con ombra */
   .check span::before {
     content: "";
     position: absolute;
@@ -170,7 +162,6 @@
     box-shadow: 0 0 7px #999da094;
   }
 
-  /* spunta */
   .check span::after {
     content: "";
     position: absolute;
@@ -199,7 +190,6 @@
   color: red !important;
 }
 
-/* contenitore generale login */
 .login-contenuto {
   position: fixed;
   top: 0;
@@ -216,21 +206,18 @@
   flex-direction: column;
 }
 
-/* focus input */
 #utente:focus,
 #password:focus {
-  outline: none; /* rimuove il riquadro bianco del browser */
-  box-shadow: 0 0 4px orange !important; /* glow arancione */
+  outline: none;
+  box-shadow: 0 0 4px orange !important;
 }
 
-/* placeholder reali (ora sono " ", ma lascio le regole come le avevi) */
 #utente::placeholder,
 #password::placeholder {
   font-size: 17px;
   color: #4f5050;
 }
 
-/* placeholder scompare quando il campo è selezionato */
 #utente:focus::placeholder,
 #password:focus::placeholder {
   color: transparent;
@@ -241,7 +228,6 @@
   color: rgb(8, 3, 58) !important;
 }
 
-/* titolo */
 h2 {
   color: aliceblue;
   font-size: 40px;
@@ -255,7 +241,6 @@ h2 {
   }
 }
 
-/* footer */
 app-footer {
   z-index: 20;
   position: absolute;
@@ -264,7 +249,6 @@ app-footer {
   bottom: 0px;
 }
 
-/* NUOVO: testo di errore sotto i campi */
 .errore-campo {
   font-size: 14px;
   color: #b41414;

@@ -9,6 +9,8 @@ import { FooterComponent } from './footer/footer.component';
 import { MainIntroComponent } from '../_benvenuto/main-intro/main-intro.component';
 import { HeaderComponent } from './header/header.component';
 import { BottoneAudioComponent } from './bottone-audio/bottone-audio.component';
+import { BottonePreferitiComponent } from './bottone-preferiti/bottone-preferiti.component';
+
 import { ToastContainerComponent } from './toast-container/toast-container.component';
 import { CaroselloNovitaComponent } from '../_catalogo/carosello-novita/carosello-novita.component';
 import { SpinnerComponent } from './spinner/spinner.component';
@@ -19,6 +21,7 @@ import { PaginaCaricamentoComponent } from './pagina-caricamento/pagina-caricame
     SfondoComponent,
     TitlesMainComponent,
     FooterComponent,
+    BottonePreferitiComponent,
     MainIntroComponent,
     HeaderComponent,
     BottoneAudioComponent,
@@ -37,13 +40,14 @@ import { PaginaCaricamentoComponent } from './pagina-caricamento/pagina-caricame
     TitlesMainComponent,
     FooterComponent,
     MainIntroComponent,
+    BottonePreferitiComponent,
     HeaderComponent,
     BottoneAudioComponent,
     ToastContainerComponent,
     CaroselloNovitaComponent,
     SpinnerComponent,
-    PaginaCaricamentoComponent, // 👈 aggiunto
+    PaginaCaricamentoComponent,
   ],
-  schemas: [CUSTOM_ELEMENTS_SCHEMA]
+  schemas: [CUSTOM_ELEMENTS_SCHEMA] // per poter usare il tag <video-js>
 })
 export class ComponentiComuniModule {}

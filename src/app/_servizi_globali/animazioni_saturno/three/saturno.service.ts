@@ -1091,15 +1091,24 @@ public flashErrorLight(): void {
   }, durata);
 }
 
-private isReloadCatalogo(): boolean {
-  try {
-    const nav = performance.getEntriesByType('navigation') as any[];
-    const tipo = nav && nav[0] && nav[0].type ? String(nav[0].type) : '';
-    const path = (window.location.pathname || '').split('?')[0].split('#')[0];
-    return (tipo === 'reload' && path === '/catalogo');
-  } catch {
-    return false;
+  private isReloadCatalogo(): boolean {
+    try {
+      const nav = performance.getEntriesByType('navigation') as any[];
+      const tipo = nav && nav[0] && nav[0].type ? String(nav[0].type) : '';
+      const path = (window.location.pathname || '').split('?')[0].split('#')[0];
+
+     const eCatalogoHome =
+       path === '/catalogo' ||
+       path === '/catalogo/' ||
+       path === '/catalogo/film' ||
+       path === '/catalogo/serie' ||
+       path === '/catalogo/film-serie';
+
+     return (tipo === 'reload' && eCatalogoHome);
+    } catch {
+      return false;
+    }
   }
-}
+
 
 }

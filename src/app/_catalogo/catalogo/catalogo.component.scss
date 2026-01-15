@@ -15,30 +15,36 @@ app-carosello-novita{
 
 
 .menuu{
-  background-color: red;
+  opacity: 0;
+  background-color: rgb(190, 200, 7);
   position: fixed;
   top: 0;
   left: 0;
-  // opacity: 0;
   z-index: 99999999999;
 }
 
 p{
   color: white;
-  // z-index: 999999999999999999999999999999999999;
-  // position: absolute;
-  // top: 0;
-  // left: 0;
+
 }
 .catalogo-contenuto {
   overflow: hidden;
   position: absolute;
-  pointer-events: none;
-  // overflow: scroll;
-  height: 100%;
   top: 0;
   left: 0;
-  margin-top: 150px;   // spazio sotto header+menu+carosello
-  padding: 0 16px;
-  // overflow: auto;
+  margin-top: 82vh;
+  max-width: 100%;
+
 }
+
+app-riga-categoria {
+
+  display: block;
+  will-change: opacity, transform;
+  transform-origin: center center;
+  pointer-events: none !important;
+}
+
+#locandine_container {
+   pointer-events: none !important;
+ }

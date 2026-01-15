@@ -1,9 +1,11 @@
+<!-- contenitore che contiene il carosello, cambia stile se non sono i cima alla pagina, e diventa legermente ofuscato quando scollano le immgini  -->
 <div
   class="contenitore-carosello"
   *ngIf="immagini.length > 0"
   [class.offuscato]="mostraVideo"
   [class.non-top]="!alTop"
 >
+<!-- contenitore che contiene la diapositiva che scrolla -->
   <div
     class="scorrimento-carosello"
     [style.transform]="stileTrasformazione"
@@ -11,6 +13,9 @@
       transizioneAttiva ? 'transform 0.5s ease-in-out' : 'none'
     "
   >
+
+  <!-- immagine con alt dinamico alla lingua -->
+   <!-- CLONE DELL'ULTIMA SLIDE PER EFFETTO INFINITO -->
     <div class="diapositiva">
       <img
         aria-hidden="true"
@@ -24,6 +29,7 @@
         "
       />
     </div>
+  <!-- immagine con alt dinamico alla lingua -->
 
     <div class="diapositiva" *ngFor="let immagine of immagini; let i = index">
       <img
@@ -39,6 +45,8 @@
         "
       />
     </div>
+  <!-- immagine con alt dinamico alla lingua -->
+   <!-- CLONE DELLA PRIMA SLIDE PER EFFETTO INFINITO -->
 
     <div class="diapositiva">
       <img
@@ -55,8 +63,11 @@
     </div>
   </div>
 
+  <!-- comanidi del carosello che cambiano stile se non sono in cima -->
   <div class="comandi-carosello" [class.rimpiciolito_salito_destra]="!alTop">
     <div class="riga-alta">
+      <!-- i bottoni hanno aria e title dinamici con la locandina e la lingua  -->
+<!-- bottoni indietro  -->
       <button
         (click)="vaiIndietro()"
         [disabled]="scorrimentoInCorso"
@@ -71,12 +82,12 @@
       >
         &#9664;
       </button>
-
+<!-- scritta novità dinamica con la lingua -->
       <span
         class="etichetta-novita"
         [innerHTML]="'ui.carosello.novita.label' | translate"
       ></span>
-
+<!-- bottone per andare avanti -->
       <button
         (click)="vaiAvanti()"
         [disabled]="scorrimentoInCorso"
@@ -94,6 +105,8 @@
     </div>
 
     <div class="riga-bassa">
+      <!-- bottoni per andare una slide precisa -->
+       <!-- aria e tilte dinamici con il cambio lingua e della slide -->
       <button
         *ngFor="let _ of immagini; let i = index"
         [class.attivo]="i + 1 === indiceCorrente"
@@ -116,7 +129,10 @@
       ></button>
     </div>
   </div>
+  <!-- sfumatura css -->
   <span class="sfumatura"></span>
+
+  <!-- tag esclusivo per il player video con video-js -->
   <video-js
     #riproduttore
     id="video-carosello-novita"
@@ -129,6 +145,7 @@
     {{ "ui.carosello.video_nosupport" | translate }}
   </video-js>
 
+  <!-- immagine dei titoli che cambiano con il cambiare della slide del carosello, cambia stille se non in cima, alt cambia con lngua, segnala al loader se sono cariche. entra con animazione -->
   <div class="sinistra-titoli" [class.rimpiciolito_salito_sinistra]="!alTop">
     <div class="contenitore-titolo" [class.nascosto]="!titoloVisibile">
       <img
@@ -141,9 +158,10 @@
         "
       />
     </div>
-
+<!-- sottotitolo che cambia con il cambio della slide e della lingua, entra con animazione  -->
     <p class="sottotitolo" [class.nascosto]="!sottotitoloVisibile">
       {{ sottotitoloOverlay }}
+      <!-- span play con title dinamico alla lingua -->
       <span
         class="play"
         [attr.title]="

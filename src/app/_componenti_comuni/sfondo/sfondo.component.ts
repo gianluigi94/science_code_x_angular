@@ -7,9 +7,18 @@ import { Component } from '@angular/core';
 })
 export class SfondoComponent {
 
-  // codice per aiutare il ridimensionamento su tutti i dispositivi
+  /**
+   * Hook di inizializzazione del componente.
+   *
+   * Calcola l'1% dell'altezza visibile della finestra
+   * e lo salva come variabile CSS '--vh'.
+   *
+   * La variabile viene aggiornata anche al resize
+   * per gestire correttamente cambi di orientamento
+   * e variazioni della UI del browser.
+   */
   ngOnInit(): void {
-    // calcolo l’1% dell’altezza visibile del dispositivo e lo salva come variabile CSS
+    // calcolo l'1% dell'altezza visibile del dispositivo e lo salva come variabile CSS
     const setVH = () => {
       const vh = window.innerHeight * 0.01;
       document.documentElement.style.setProperty('--vh', `${vh}px`);

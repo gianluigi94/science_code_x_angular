@@ -1,1367 +1,715 @@
+// Componente che funge da elemento principale del carosello novità, mantenendo lo stato centrale e delegando alle utility specializzate il comportamento di scorrimento, overlay, video, audio e reazioni a scroll, focus e cambio lingua.
+
 import { Component, OnDestroy, OnInit, AfterViewInit, ViewChild, ElementRef, HostListener } from '@angular/core';
-import videojs from 'video.js';
 import { TranslateService } from '@ngx-translate/core';
 import { CambioLinguaService } from 'src/app/_servizi_globali/cambio-lingua.service';
-import {
-  CaroselloNovitaService,
-  NovitaItem,
-  NovitaInfo,
-} from './carosello_services/carosello-novita.service';
+import { CaroselloNovitaService } from './carosello_services/carosello-novita.service';
+import { NovitaInfo } from 'src/app/_interfacce/Inovita-info.interface';
 import { CaricamentoCaroselloService } from './carosello_services/caricamento-carosello.service';
-import { shareReplay } from 'rxjs/operators';
-import { Subscription, combineLatest } from 'rxjs';
-
-
+import { Subscription } from 'rxjs';
+import { CaroselloScrollUtility } from './carosello_utility/carosello-scroll.utility';
+import { CaroselloDatiUtility } from './carosello_utility/carosello-dati.utility';
+import { CaroselloOverlayUtility } from './carosello_utility/carosello-overlay.utility';
+import { CaroselloTopUtility } from './carosello_utility/carosello-top.utility';
+import { CaroselloFocusUtility } from './carosello_utility/carosello-focus.utility';
+import { CaroselloGettersUtility } from './carosello_utility/carosello-getters.utility';
+import { CaroselloVideoUtility } from './carosello_utility/carosello-video.utility';
+import { CaroselloAudioUtility } from './carosello_utility/carosello-audio.utility';
+import { CaroselloPlayerUtility } from './carosello_utility/carosello-player.utility';
+import { CaroselloScrollStateUtility } from './carosello_utility/carosello-scroll-state.utility';
+import { CaroselloCopertureUtility } from './carosello_utility/carosello-coperture.utility';
 
 @Component({
   selector: 'app-carosello-novita',
   templateUrl: './carosello-novita.component.html',
   styleUrls: ['./carosello-novita.component.scss'],
 })
-export class CaroselloNovitaComponent implements OnInit, OnDestroy, AfterViewInit {
-  alTop = true;
-pausaPerScroll = false;
-SCROLL_THRESHOLD = 10;
-timerAutoscroll: any = null;
-INTERVALLO_AUTOSCROLL_MS = 6200;
-pausaPerBlur = false;
-  immagini: string[] = [];
-  descrizioni: string[] = [];
-  titoliAlt: string[] = [];
-chiaveStorageIndice = 'carosello_novita_ultima_slide_reale';
-  imgTitolo: string[] = [];
-  sottotitoli: string[] = [];
+export class CaroselloNovitaComponent
+  implements OnInit, OnDestroy, AfterViewInit
+{
+  alTop = true; // Tengo traccia se sono 'in cima' alla pagina (stato iniziale: sì)
+  pausaPerScroll = false; // Segno se devo mettere in pausa per via dello scroll (inizialmente no)
+  SCROLL_THRESHOLD = 10; // Imposto la soglia (in px) entro cui considero la pagina 'in cima'
+  timerAutoscroll: any = null; // Mi tengo il riferimento al timer dell'autoscroll (per poterlo fermare/reset)
+  INTERVALLO_AUTOSCROLL_MS = 6200; // Definisco ogni quanti ms far scattare l'autoscroll
+  pausaPerBlur = false; // Segno se sono in pausa perché la finestra ha perso il focus (blur)
+  immagini: string[] = []; // Memorizzo la lista delle immagini di sfondo del carosello
+  descrizioni: string[] = []; // Memorizzo le descrizioni associate alle slide
+  titoliAlt: string[] = []; // Memorizzo i titoli (testo alternativo / titolo) per ogni slide
+  chiaveStorageIndice = 'carosello_novita_ultima_slide_reale'; // Definisco la chiave di localStorage per salvare/riprendere l'indice reale
+  imgTitolo: string[] = []; // Memorizzo le immagini dei titoli (se presenti) per ogni slide
+  sottotitoli: string[] = []; // Memorizzo i sottotitoli per ogni slide
+  indiciSfondiCritici: number[] = []; // Tengo la lista degli indici sfondo 'critici' che devono essere pronti subito
 
-  titoloOverlay = '';
-  imgTitoloOverlay = '';
-  sottotitoloOverlay = '';
+  titoloOverlay = ''; // Tengo il titolo attualmente mostrato nell'overlay
+  imgTitoloOverlay = ''; // Tengo l'immagine titolo attualmente mostrata nell'overlay
+  sottotitoloOverlay = ''; // Tengo il sottotitolo attualmente mostrato nell'overlay
 
-  titoloVisibile = true;
-  sottotitoloVisibile = true;
-  durataFadeTitoliMs = 200;
-  pausaNeroTitoliMs = 50;
+  titoloVisibile = true; // Decido se il titolo è visibile (stato iniziale: sì)
+  sottotitoloVisibile = true; // Decido se il sottotitolo è visibile (stato iniziale: sì)
+  durataFadeTitoliMs = 200; // Imposto la durata del fade dei titoli
+  pausaNeroTitoliMs = 50; // Imposto la pausa di 'nero' tra fade out e nuovo contenuto
 
-  private timerFadeTitolo: any = null;
-  private timerImpostaTitolo: any = null;
-  private idCambioTitoli = 0;
-  private inBlackoutTitoli = false;
-  private titoloPronto = false;
+  private timerFadeTitolo: any = null; // Tengo il timer del fade del titolo per poterlo annullare se serve
+  private timerImpostaTitolo: any = null; // Tengo il timer che imposta il nuovo titolo dopo l'attesa
+  private idCambioTitoli = 0; // Uso un contatore/token per invalidare cambi titoli precedenti
+  private inBlackoutTitoli = false; // Segno se i titoli sono in blackout (fase 'nero'/transizione)
+  private titoloPronto = false; // Segno se il titolo è pronto da mostrare (es. immagine caricata)
 
-  indiceCorrente = 1;
-  transizioneAttiva = true;
-  stileTrasformazione = 'translateX(-100%)';
-  scorrimentoInCorso = false;
+  indiceCorrente = 1; // Tengo l'indice corrente della slide
+  transizioneAttiva = true; // Decido se la transizione CSS è attiva
+  stileTrasformazione = 'translateX(-100%)'; // Imposto la trasformazione iniziale per posizionare la slide
+  scorrimentoInCorso = false; // Segno se uno scorrimento/transizione è attualmente in corso
 
-  durataTransizioneMs = 500;
-riproduttore: ElementRef | null = null;
-playerInizializzato = false;
+  durataTransizioneMs = 500; // Imposto la durata (ms) della transizione tra slide
+  riproduttore: ElementRef | null = null; // Tengo il riferimento al player DOM se disponibile
+  playerInizializzato = false; // Segno se il player è già stato inizializzato
 
-@ViewChild('riproduttore')
-set riproduttoreViewChild(ref: ElementRef | null) {
-  this.riproduttore = ref;
-  this.inizializzaPlayerSePronto();
-}
+  @ViewChild('riproduttore') // Collego il ViewChild al template reference 'riproduttore' per ottenere l'ElementRef
+  set riproduttoreViewChild(ref: ElementRef | null) {
+    // Intercetto quando Angular assegna/aggiorna il riferimento al ViewChild
+    this.riproduttore = ref; // Salvo il riferimento dell'elemento player nella proprietà di classe
+    this.inizializzaPlayerSePronto(); // Provo a inizializzare il player appena ho tutto pronto
+  }
 
-  player: any;
-  mostraVideo = false;
+  player: any; // Mantengo l'istanza del player video (video.js o simile)
+  mostraVideo = false; // Decido se mostrare o nascondere il video (inizialmente nascosto)
 
-  durataFadeAudioMs = 350;
-  durataFadeVisivoMs = 250;
-  RITARDO_MOSTRA_PLAYER_MS = 1250;
+  durataFadeAudioMs = 350; // Imposto la durata del fade audio in millisecondi
+  durataFadeVisivoMs = 250; // Imposto la durata del fade visivo in millisecondi
+  RITARDO_MOSTRA_PLAYER_MS = 1250; // Definisco il ritardo prima di mostrare/avviare il player
 
-  timerMostra: any = null;
-numeroSequenzaAvvio = 0;
+  timerMostra: any = null; // Mi tengo il timer che ritarda la comparsa/avvio del video
+  numeroSequenzaAvvio = 0; // Uso un contatore per invalidare avvii vecchi quando cambia lo stato
 
-tentativiTrailer = 0;
-MAX_TENTATIVI_TRAILER = 2;
+  tentativiTrailer = 0; // Conto quanti tentativi ho fatto per avviare il trailer corrente
+  MAX_TENTATIVI_TRAILER = 2; // Imposto il massimo numero di retry concessi per un trailer
 
+  contestoAudio: any = null; // Tengo il riferimento all'AudioContext del Web Audio API
+  nodoSorgente: any = null; // Tengo il nodo sorgente (MediaElementSource) collegato al video
+  nodoGuadagno: any = null; // Tengo il nodo GainNode per gestire volume e fade
+  elementoVideoReale: any = null; // Salvo il riferimento al vero elemento <video> dentro il player
+  audioConsentito = false; // Segno se l'audio e' consentito (policy autoplay / interazione utente)
 
-    contestoAudio: any = null;
-  nodoSorgente: any = null;
-  nodoGuadagno: any = null;
-  elementoVideoReale: any = null;
-  audioConsentito = false;
+  sbloccoAudioAttivo = false; // Segno se ho gia' attivato la logica di sblocco audio su interazione
+  sbloccaAudioBinding: any = null; // Mi salvo la funzione handler per rimuovere l'event listener dopo l'uso
 
-  sbloccoAudioAttivo = false;
-  sbloccaAudioBinding: any = null;
+  sfondiCaricati: Record<number, boolean> = {}; // Traccio quali sfondi (per indice) risultano caricati
+  contaSfondiCaricati = 0; // Conto quanti sfondi sono stati caricati (utile per progress o log)
+  logSfondiFatto = false; // Evito di loggare piu' volte l'evento 'sfondi pronti'
+  logTitoliFatto = false; // Evito di loggare piu' volte l'evento 'titoli pronti'
 
-   sfondiCaricati: Record<number, boolean> = {};
-  contaSfondiCaricati = 0;
-  logSfondiFatto = false;
-  logTitoliFatto = false;
+  segnalatiTitoliPronti = false; // Segno se ho gia' notificato al servizio che i titoli sono pronti
 
-  segnalatiTitoliPronti = false;
+  mappaNovitaCorrente: Record<string, NovitaInfo> = {}; // Tengo la mappa delle novita attualmente in uso (per lingua corrente)
+  trailers: string[] = []; // Memorizzo gli URL dei trailer associati alle slide
 
+  private subs = new Subscription(); // Colleziono le subscription RxJS per poterle disiscrivere in destroy
 
+  private idCambioLinguaVideo = 0; // Uso un token incrementale per distinguere i cambi lingua video
+  private promessaStopCambioLingua: Promise<void> | null = null; // Mi salvo la promise dello stop/fade legata al cambio lingua
 
-  mappaNovitaCorrente: Record<string, NovitaInfo> = {};
-  trailers: string[] = [];
-
-    private subs = new Subscription();
-
- private idCambioLinguaVideo = 0;
- private promessaStopCambioLingua: Promise<void> | null = null;
-
-
-
-        constructor(
+  constructor(
     private caroselloNovitaService: CaroselloNovitaService,
     private cambioLinguaService: CambioLinguaService,
     private translate: TranslateService,
-    private caricamentoCaroselloService: CaricamentoCaroselloService,
+    private caricamentoCaroselloService: CaricamentoCaroselloService
   ) {}
 
-
-
+/**
+ * Metodo eseguito all'inizializzazione del componente.
+ *
+ * Avvia il caricamento dei dati del carosello e registra le sottoscrizioni
+ * agli eventi di cambio lingua per aggiornare testi, overlay e trailer.
+ *
+ * @link https://docs.videojs.com/
+ * @returns void
+ */
   ngOnInit(): void {
-    this.caricaDati();
-
-this.subs.add(
-  this.cambioLinguaService.cambioLinguaAvviato$.subscribe(() => {
-    // annulla eventuali Promise/timer in corso
-    this.idCambioTitoli++;
-    if (this.timerFadeTitolo) clearTimeout(this.timerFadeTitolo);
-    if (this.timerImpostaTitolo) clearTimeout(this.timerImpostaTitolo);
-
-    // NON fare blackout qui: tieni visibile la vecchia immagine
-    this.inBlackoutTitoli = false;
-    // lascia titoloVisibile/sottotitoloVisibile invariati
-
-   // VIDEO: fade-out come lo scorrimento (niente taglio secco)
-   const token = ++this.idCambioLinguaVideo;
-   this.mostraVideo = false;
-   this.fermaAvvioPendete();
-
-   this.promessaStopCambioLingua = this.sfumaGuadagnoVerso(0, this.durataFadeAudioMs).finally(() => {
-     if (token !== this.idCambioLinguaVideo) return;
-     try { this.player.pause(); } catch {}
-     try { this.player.currentTime(0); } catch {}
-   });
-  })
-);
-
-
-
-  this.subs.add(
-  this.cambioLinguaService.cambioLinguaApplicata$.subscribe(
-    ({ mappaNovita }) => {
-      this.titoliAlt = this.descrizioni.map(
-        (d) => mappaNovita[d]?.titolo || ''
-      );
-      this.imgTitolo = this.descrizioni.map(
-        (d) => mappaNovita[d]?.img_titolo || ''
-      );
-      this.sottotitoli = this.descrizioni.map(
-        (d) => mappaNovita[d]?.sottotitolo || ''
-      );
-
-      this.mappaNovitaCorrente = mappaNovita;
-      this.trailers = this.descrizioni.map((d) => mappaNovita[d]?.trailer || '');
-
-      this.aggiornaOverlayPerIndiceCorrente(this.indiceCorrente, true);
-
-     // aspetta che finisca il fade-out del cambio lingua, poi riparti
-     const token = this.idCambioLinguaVideo;
-     const stop = this.promessaStopCambioLingua;
-     this.promessaStopCambioLingua = null;
-
-     (stop ?? Promise.resolve()).finally(() => {
-       if (token !== this.idCambioLinguaVideo) return;
-       this.avviaTrailerCorrenteDopo(this.RITARDO_MOSTRA_PLAYER_MS);
-     });
-    }
-  )
-);
-
-
-  }
-
-   ngAfterViewInit(): void {
-  this.inizializzaPlayerSePronto();
-}
-
-
-
-  ngOnDestroy(): void {
-    this.fermaAvvioPendete();
-    this.fermaAutoscroll();
-
-    try {
-      this.rimuoviAscoltoSbloccoAudio();
-    } catch {}
-
-    try {
-      if (this.nodoSorgente) this.nodoSorgente.disconnect();
-    } catch {}
-    try {
-      if (this.nodoGuadagno) this.nodoGuadagno.disconnect();
-    } catch {}
-    try {
-      if (this.contestoAudio && this.contestoAudio.state !== 'closed') this.contestoAudio.close();
-    } catch {}
-
-    try {
-      if (this.player) this.player.dispose();
-    } catch {}
-
-    this.subs.unsubscribe();
-  }
-
-
-    caricaDati(): void {
-  const giaPronto = this.caricamentoCaroselloService.caroselloPronto$.value;
-  if (!giaPronto) this.caricamentoCaroselloService.resetta();
-  this.segnalatiTitoliPronti = giaPronto;
-
-  const lang = this.cambioLinguaService.leggiCodiceLingua();
-
-  const novita$ = this.caroselloNovitaService.getNovita().pipe(shareReplay(1));
-  const mappa$ = this.caroselloNovitaService.getInfoNovitaMap(lang).pipe(shareReplay(1));
-
-  // 1) appena arrivano le novita, aggancio subito gli sfondi (download parte subito)
-  this.subs.add(
-    novita$.subscribe({
-      next: (elencoOrdinato: NovitaItem[]) => {
-        this.immagini = elencoOrdinato.map((x) => x.img_sfondo);
-        this.descrizioni = elencoOrdinato.map((x) => x.descrizione || '');
-
-        this.sfondiCaricati = {};
-        this.logSfondiFatto = false;
-
-        if (this.immagini.length > 0) {
-            // RIPRESA SLIDE: se presente in localStorage, riparti da li' (indice reale 0-based)
-  const indiceSalvato = this.leggiIndiceRealeDaStorage();
-  if (indiceSalvato !== null) {
-    const len = this.immagini.length;
-    const clamp = Math.max(0, Math.min(indiceSalvato, Math.max(0, len - 1)));
-    this.indiceCorrente = clamp + 1; // 1-based (prima slide reale)
-  } else {
-    this.indiceCorrente = 1;
-  }
-
-  this.transizioneAttiva = false;
-  this.stileTrasformazione = `translateX(-${this.indiceCorrente * 100}%)`;
-
-          this.impostaIndiciSfondiCritici(); // 👈 nuovo
-
-          this.provaAvvioInizialeTrailer();
-        } else {
-          if (!giaPronto) {
-            this.caricamentoCaroselloService.segnalaSfondiPronti();
-            this.caricamentoCaroselloService.segnalaTitoliPronti();
-            this.segnalatiTitoliPronti = true;
-          }
-        }
-      },
-      error: (err) => console.error('Errore nel caricamento novita', err),
-    })
-  );
-
-  // 2) quando ho sia elenco che mappa, preparo titoli/trailer
-  this.subs.add(
-    combineLatest([novita$, mappa$]).subscribe(([elencoOrdinato, mappa]) => {
-      const descr = elencoOrdinato.map((x) => x.descrizione || '');
-
-      this.mappaNovitaCorrente = mappa;
-      this.titoliAlt = descr.map((d) => mappa[d]?.titolo || '');
-      this.imgTitolo = descr.map((d) => mappa[d]?.img_titolo || '');
-      this.sottotitoli = descr.map((d) => mappa[d]?.sottotitolo || '');
-      this.trailers = descr.map((d) => mappa[d]?.trailer || '');
-
-      // prima paint: niente attesa fade+pausa+preload
-      this.aggiornaOverlayPerIndiceCorrente(this.indiceCorrente, false);
-      this.provaAvvioInizialeTrailer();
-    })
-  );
-}
-// + aggiungi questi HostListener (vicino a quello dello scroll)
-@HostListener('window:blur', [])
-gestisciBlurFinestra(): void {
-  // blocca qualsiasi autoscroll e resetta il timer
-  this.fermaAutoscroll();
-
-  // se c'era video attivo: stop con fade come "scendo"
-  if (!this.player) return;
-  if (this.pausaPerBlur) return;
-
-  this.pausaPerBlur = true;
-
-  this.fermaAvvioPendete();
-  this.numeroSequenzaAvvio++;
-
-  this.mostraVideo = false;
-
-  this.sfumaGuadagnoVerso(0, this.durataFadeAudioMs).finally(() => {
-    try { this.player.pause(); } catch {}
-    try { this.player.currentTime(0); } catch {}
-  });
-}
-
-@HostListener('window:focus', [])
-gestisciFocusFinestra(): void {
-  if (!this.pausaPerBlur) return;
-  this.pausaPerBlur = false;
-
-  // reset "tempo autoscroll": riparti da zero solo se NON sei al top
-  if (!this.alTop) {
-    this.avviaAutoscroll();
-    return;
-  }
-
-  // se sei al top, puoi ripartire col trailer corrente
-  if (this.player && !this.pausaPerScroll) {
-    this.avviaTrailerCorrenteDopo(this.RITARDO_MOSTRA_PLAYER_MS);
-  }
-}
-
-@HostListener('window:scroll', [])
-gestisciScroll(): void {
-  const y = window.pageYOffset || document.documentElement.scrollTop || 0;
-  const inCima = y <= this.SCROLL_THRESHOLD;
-
-  if (inCima === this.alTop) return; // nessun cambio stato
-
-  this.alTop = inCima;
-
-  if (!inCima) {
-    this.onUscitaDalTop();
-  } else {
-    this.onRitornoAlTop();
-  }
-}
-
-
-
-
- vaiAvanti(daAutoscroll: boolean = false): void {
-  this.avviaCambioSlideConFade(() => {
-    if (this.scorrimentoInCorso || this.immagini.length === 0) return;
-    this.scorrimentoInCorso = true;
-
-    // se non sono al top, qualsiasi movimento (manuale o auto) resetta il timer:
-    // lo fermo subito per evitare che scatti durante la transizione
-    if (!this.alTop) this.fermaAutoscroll();
-
-    const prossimo = this.indiceCorrente + 1;
-
-    this.aggiornaOverlayPerIndiceCorrente(prossimo, true);
-
-    this.indiceCorrente = prossimo;
-    this.salvaIndiceRealeInStorage(this.getIndiceRealeZeroBased());
-    this.aggiornaTrasformazione(true);
-
-    const chiudi = () => {
-      this.scorrimentoInCorso = false;
-
-      // video solo al top
-      if (this.alTop && !this.pausaPerScroll) {
-        this.avviaTrailerCorrenteDopo(this.RITARDO_MOSTRA_PLAYER_MS);
-      } else {
-        this.mostraVideo = false;
-
-        // se non sono al top: riparte da zero l'autoscroll (manuale o auto)
-        this.avviaAutoscroll();
-      }
-    };
-
-    if (this.indiceCorrente > this.immagini.length) {
-      setTimeout(() => {
-        this.transizioneAttiva = false;
-        this.indiceCorrente = 1;
-         this.salvaIndiceRealeInStorage(this.getIndiceRealeZeroBased());
-        this.aggiornaTrasformazione(false);
-        chiudi();
-      }, this.durataTransizioneMs);
-    } else {
-      setTimeout(() => {
-        chiudi();
-      }, this.durataTransizioneMs);
-    }
-  });
-}
-
-
-
- vaiIndietro(): void {
-  this.avviaCambioSlideConFade(() => {
-    if (this.scorrimentoInCorso || this.immagini.length === 0) return;
-    this.scorrimentoInCorso = true;
-
-    if (!this.alTop) this.fermaAutoscroll();
-
-    const prossimo = this.indiceCorrente - 1;
-
-    this.aggiornaOverlayPerIndiceCorrente(prossimo, true);
-
-    this.indiceCorrente = prossimo;
-    this.salvaIndiceRealeInStorage(this.getIndiceRealeZeroBased());
-    this.aggiornaTrasformazione(true);
-
-    const chiudi = () => {
-      this.scorrimentoInCorso = false;
-
-      if (this.alTop && !this.pausaPerScroll) {
-        this.avviaTrailerCorrenteDopo(this.RITARDO_MOSTRA_PLAYER_MS);
-      } else {
-        this.mostraVideo = false;
-        this.avviaAutoscroll();
-      }
-    };
-
-    if (this.indiceCorrente === 0) {
-      setTimeout(() => {
-        this.transizioneAttiva = false;
-        this.indiceCorrente = this.immagini.length;
-        this.salvaIndiceRealeInStorage(this.getIndiceRealeZeroBased());
-        this.aggiornaTrasformazione(false);
-        chiudi();
-      }, this.durataTransizioneMs);
-    } else {
-      setTimeout(() => {
-        chiudi();
-      }, this.durataTransizioneMs);
-    }
-  });
-}
-
-
-
- selezionaIndice(indiceZeroBased: number): void {
-  this.avviaCambioSlideConFade(() => {
-    if (this.scorrimentoInCorso || this.immagini.length === 0) return;
-
-    const prossimo = indiceZeroBased + 1;
-    if (prossimo === this.indiceCorrente) return;
-
-    this.scorrimentoInCorso = true;
-
-    if (!this.alTop) this.fermaAutoscroll();
-
-    this.aggiornaOverlayPerIndiceCorrente(prossimo, true);
-
-    this.indiceCorrente = prossimo;
-    this.salvaIndiceRealeInStorage(this.getIndiceRealeZeroBased());
-    this.aggiornaTrasformazione(true);
-
-    setTimeout(() => {
-      this.scorrimentoInCorso = false;
-
-      if (this.alTop && !this.pausaPerScroll) {
-        this.avviaTrailerCorrenteDopo(this.RITARDO_MOSTRA_PLAYER_MS);
-      } else {
-        this.mostraVideo = false;
-        this.avviaAutoscroll();
-      }
-    }, this.durataTransizioneMs);
-  });
-}
-
-
-
-  aggiornaTrasformazione(conAnimazione: boolean): void {
-    this.transizioneAttiva = conAnimazione;
-    this.stileTrasformazione = `translateX(-${this.indiceCorrente * 100}%)`;
-  }
-
-    fermaAvvioPendete(): void {
-    if (this.timerMostra) {
-      clearTimeout(this.timerMostra);
-      this.timerMostra = null;
-    }
-    this.numeroSequenzaAvvio++;
-  }
-
-    provaAvvioInizialeTrailer(): void {
-   if (!this.player) return;
-   if (!this.immagini.length) return;
-   if (!this.trailers.length) return;
-   this.avviaTrailerCorrenteDopo(this.RITARDO_MOSTRA_PLAYER_MS);
- }
-
-
-
-  getPrevTitolo(): string {
-    if (!this.titoliAlt.length || !this.immagini.length) return '';
-    const len = this.immagini.length;
-    const currentIndex = (this.indiceCorrente - 1 + len) % len;
-    const prevIndex = (currentIndex - 1 + len) % len;
-    return this.titoliAlt[prevIndex] || '';
-  }
-
-  getNextTitolo(): string {
-    if (!this.titoliAlt.length || !this.immagini.length) return '';
-    const len = this.immagini.length;
-    const currentIndex = (this.indiceCorrente - 1 + len) % len;
-    const nextIndex = (currentIndex + 1) % len;
-    return this.titoliAlt[nextIndex] || '';
-  }
-
-  private aggiornaTestiPerLingua(lang: string): void {
-   this.caroselloNovitaService.getInfoNovitaMap(lang).subscribe((mappa) => {
-  this.titoliAlt = this.descrizioni.map((d) => mappa[d]?.titolo || '');
-  this.imgTitolo = this.descrizioni.map((d) => mappa[d]?.img_titolo || '');
-  this.sottotitoli = this.descrizioni.map((d) => mappa[d]?.sottotitolo || '');
-
-  this.mappaNovitaCorrente = mappa;
-  this.trailers = this.descrizioni.map((d) => mappa[d]?.trailer || '');
-
-  this.aggiornaOverlayPerIndiceCorrente(this.indiceCorrente, true);
-
-  this.riavviaTrailerCorrenteDopoCambioLingua();
-});
-
-  }
-
-  private getIndiceRealeZeroBased(): number {
-    if (!this.immagini.length) return 0;
-    const len = this.immagini.length;
-    return (this.indiceCorrente - 1 + len) % len;
-  }
-
-  getTitoloCorrente(): string {
-    if (!this.titoliAlt.length) return '';
-    return this.titoliAlt[this.getIndiceRealeZeroBased()] || '';
-  }
-
-  getImgTitoloCorrente(): string {
-    if (!this.imgTitolo.length) return '';
-    return this.imgTitolo[this.getIndiceRealeZeroBased()] || '';
-  }
-
-  getSottotitoloCorrente(): string {
-    if (!this.sottotitoli.length) return '';
-    return this.sottotitoli[this.getIndiceRealeZeroBased()] || '';
-  }
-
-  private aggiornaOverlayPerIndiceCorrente(
-    indiceCorrenteNuovo: number,
-    conTransizione: boolean
-  ): void {
-    const len = this.immagini.length;
-    if (!len) return;
-
-    const indiceReale = (indiceCorrenteNuovo - 1 + len) % len;
-
-    const nuovoTitolo = this.titoliAlt[indiceReale] || '';
-    const nuovaImgTitolo = this.imgTitolo[indiceReale] || '';
-    const nuovoSottotitolo = this.sottotitoli[indiceReale] || '';
-
-    this.impostaOverlay(
-      nuovoTitolo,
-      nuovaImgTitolo,
-      nuovoSottotitolo,
-      conTransizione
-    );
-  }
-
-    private impostaOverlay(
-    nuovoTitolo: string,
-    nuovaImgTitolo: string,
-    nuovoSottotitolo: string,
-    conTransizione: boolean
-  ): void {
-    if (!conTransizione) {
-      this.inBlackoutTitoli = false;
-      this.titoloPronto = !nuovaImgTitolo;
-      this.titoloOverlay = nuovoTitolo;
-      this.imgTitoloOverlay = nuovaImgTitolo;
-      this.sottotitoloOverlay = nuovoSottotitolo;
-      this.titoloVisibile = true;
-      this.sottotitoloVisibile = true;
-
-      if (this.titoloPronto && !this.segnalatiTitoliPronti) {
-        this.segnalatiTitoliPronti = true;
-        this.caricamentoCaroselloService.segnalaTitoliPronti();
-      }
-
-      return;
-    }
-
-    if (this.timerFadeTitolo) clearTimeout(this.timerFadeTitolo);
-    if (this.timerImpostaTitolo) clearTimeout(this.timerImpostaTitolo);
-
-    const token = ++this.idCambioTitoli;
-    this.inBlackoutTitoli = true;
-    this.titoloPronto = !nuovaImgTitolo;
-
-    this.titoloVisibile = false;
-    this.sottotitoloVisibile = false;
-
-    if (this.titoloPronto && !this.segnalatiTitoliPronti) {
-      this.segnalatiTitoliPronti = true;
-      this.caricamentoCaroselloService.segnalaTitoliPronti();
-    }
-
-    const attesaFineFade = new Promise<void>((res) =>
-      setTimeout(res, this.durataFadeTitoliMs)
-    );
-    const attesaPausaNero = new Promise<void>((res) =>
-      setTimeout(res, this.pausaNeroTitoliMs)
-    );
-    const attesaPreload = this.precaricaImmagine(nuovaImgTitolo);
-
-    Promise.all([attesaFineFade, attesaPausaNero, attesaPreload]).then(() => {
-      if (token !== this.idCambioTitoli) return;
-
-      this.titoloOverlay = nuovoTitolo;
-      this.imgTitoloOverlay = nuovaImgTitolo;
-      this.sottotitoloOverlay = nuovoSottotitolo;
-
-      requestAnimationFrame(() => {
-        if (token !== this.idCambioTitoli) return;
-        this.inBlackoutTitoli = false;
-
-        if (this.titoloPronto) {
-          this.titoloVisibile = true;
-          this.sottotitoloVisibile = true;
-        }
-      });
-    });
-  }
-
-
-     segnalaTitoloCaricato(): void {
-    this.titoloPronto = true;
-
-    if (!this.logTitoliFatto && this.imgTitoloOverlay) {
-      this.logTitoliFatto = true;
-      console.log('TITOLI PRONTI alle ' + performance.now() + ' ms');
-    }
-
-    if (!this.segnalatiTitoliPronti) {
-      this.segnalatiTitoliPronti = true;
-      this.caricamentoCaroselloService.segnalaTitoliPronti();
-    }
-
-    if (!this.inBlackoutTitoli) {
-      this.titoloVisibile = true;
-      this.sottotitoloVisibile = true;
-    }
-  }
-
-
-
-      private precaricaImmagine(url: string): Promise<void> {
-    return new Promise((ok) => {
-      if (!url) return ok();
-      const img = new Image();
-      img.src = url;
-      if (img.complete) return ok();
-      img.onload = img.onerror = () => ok();
-    });
-  }
-
-  segnalaSfondoCaricato(indice: number): void {
-  if (this.logSfondiFatto) return;
-  if (!this.immagini || this.immagini.length === 0) return;
-  if (this.sfondiCaricati[indice]) return;
-
-  this.sfondiCaricati[indice] = true;
-
-  // 👇 basta che siano pronti quelli che servono subito (cur/prev/next)
-  if (this.sfondiCriticiPronti()) {
-    this.logSfondiFatto = true;
-    console.log('SFONDI CRITICI PRONTI alle ' + performance.now() + ' ms');
-    this.caricamentoCaroselloService.segnalaSfondiPronti();
-  }
-}
-
-
-
-
-  avviaCambioSlideConFade(azioneScorrimento: () => void): void {
-    if (!this.player) {
-      azioneScorrimento();
-      return;
-    }
-
-    this.mostraVideo = false;
-    this.fermaAvvioPendete();
-
-    const fade = this.sfumaGuadagnoVerso(0, this.durataFadeAudioMs);
-
-    azioneScorrimento();
-
-    fade.finally(() => {
-      try { this.player.pause(); } catch {}
-      try { this.player.currentTime(0); } catch {}
-    });
-  }
-
-  avviaTrailerCorrenteDopo(ms: number): void {
-  if (!this.player) return;
-  if (!this.trailers || this.trailers.length === 0) return;
-
-  // 👇 REGOLA: fuori dal top / pausa scroll / blur -> mai avvio video
-  if (!this.alTop || this.pausaPerScroll || this.pausaPerBlur) {
-    this.mostraVideo = false;
-    return;
-  }
-
-  this.fermaAvvioPendete();
-
-  const len = this.immagini.length;
-  const indiceReale = (this.indiceCorrente - 1 + len) % len;
-  const urlTrailer = this.trailers[indiceReale] || '';
-
-  if (!urlTrailer) {
-    this.mostraVideo = false;
-    return;
-  }
-
-    const token = ++this.numeroSequenzaAvvio;
-
-  this.mostraVideo = false;
-  this.sfumaGuadagnoVerso(0, 0);
-
-  try { this.player.pause(); } catch {}
-  try { this.player.currentTime(0); } catch {}
-
-  // reset retry per questo trailer
-  this.tentativiTrailer = 0;
-
-  this.attendiCopertureNonVisibili().then(() => {
-    if (token !== this.numeroSequenzaAvvio) return;
-
-    this.timerMostra = setTimeout(async () => {
-      this.timerMostra = null;
-
-      if (token !== this.numeroSequenzaAvvio) return;
-
-      // ricontrollo: magari nel frattempo hai scrollato giu' / blur
-      if (!this.alTop || this.pausaPerScroll || this.pausaPerBlur) {
-        this.mostraVideo = false;
-        return;
-      }
-
-      await this.caricaTrailerEAvvia(urlTrailer, token);
-    }, Math.max(0, ms));
-  });
-
-}
-
-
-  collegaFineTrailer(): void {
-    try {
-      if (!this.player) return;
-      this.player.off('ended');
-    } catch {}
-
-    try {
-     this.player.on('ended', () => {
-  this.mostraVideo = false;
-  this.fermaAvvioPendete();
-
-  this.sfumaGuadagnoVerso(0, this.durataFadeAudioMs).finally(() => {
-    try { this.player.pause(); } catch {}
-    try { this.player.currentTime(0); } catch {}
-
-    this.vaiAvantiDaFineTrailer();
-  });
-});
-
-    } catch {}
-  }
-
-  riavviaTrailerCorrenteDopoCambioLingua(): void {
-    if (!this.player) return;
-    if (!this.trailers || this.trailers.length === 0) return;
-
-    this.mostraVideo = false;
-    this.fermaAvvioPendete();
-
-    this.sfumaGuadagnoVerso(0, this.durataFadeAudioMs).finally(() => {
-      try { this.player.pause(); } catch {}
-      try { this.player.currentTime(0); } catch {}
-
-      this.avviaTrailerCorrenteDopo(this.RITARDO_MOSTRA_PLAYER_MS);
-    });
-  }
-
-  tentaAutoplayConAudio(): void {
-    try {
-      this.impostaMuteReale(false);
-
-      const promessa = this.player.play();
-      if (promessa && typeof promessa.then === 'function') {
-        promessa
-          .then(() => {
-            this.audioConsentito = true;
-            this.inizializzaWebAudioSuVideoReale();
-          })
-          .catch(() => {
-            this.avviaMutatoConOpzioneSblocco(true);
-          });
-      } else {
-        setTimeout(() => {
+    this.caricaDati(); // Avvio il caricamento dati iniziali
+
+    this.subs.add(
+      // Registro questa subscription per poterla disiscrivere in destroy
+      this.cambioLinguaService.cambioLinguaAvviato$.subscribe(() => {
+        // Reagisco all'avvio del cambio lingua
+        this.idCambioTitoli++; // Invalido le transizioni titoli precedenti incrementando il token
+        if (this.timerFadeTitolo) clearTimeout(this.timerFadeTitolo); // Cancello il timer del fade titolo se attivo
+        if (this.timerImpostaTitolo) clearTimeout(this.timerImpostaTitolo); // Cancello il timer di impostazione titolo se attivo
+
+        this.inBlackoutTitoli = false; // Evito il blackout: mantengo visibile l'immagine/titolo precedente
+
+        const token = ++this.idCambioLinguaVideo; // Creo un token per questo specifico cambio lingua video
+        this.mostraVideo = false; // Nascondo il video durante il cambio lingua
+        this.fermaAvvioPendete(); // Interrompo eventuali avvii pendenti del trailer
+
+        this.promessaStopCambioLingua = this.sfumaGuadagnoVerso(
+          0,
+          this.durataFadeAudioMs
+        ).finally(() => {
+          // Faccio fade-out audio e poi stoppo il player se il token e' ancora valido
+          if (token !== this.idCambioLinguaVideo) return; // Esco se nel frattempo e' partito un altro cambio lingua
           try {
-            if (this.player && typeof this.player.paused === 'function' && this.player.paused()) {
-              this.avviaMutatoConOpzioneSblocco(true);
-            }
-          } catch {
-            this.avviaMutatoConOpzioneSblocco(true);
-          }
-        }, 0);
-      }
-    } catch {
-      this.avviaMutatoConOpzioneSblocco(true);
-    }
-  }
-
-  avviaMutatoConOpzioneSblocco(consentiSblocco: boolean): void {
-    try {
-      this.impostaMuteReale(true);
-
-      const p = this.player.play();
-      if (p && typeof p.catch === 'function') {
-        p.catch(() => {});
-      }
-    } catch {}
-
-    if (consentiSblocco) this.preparaSbloccoAudioSuInterazione();
-  }
-
-  preparaSbloccoAudioSuInterazione(): void {
-    if (this.sbloccoAudioAttivo) return;
-    this.sbloccoAudioAttivo = true;
-
-    this.sbloccaAudioBinding = (_ev: Event) => {
-      this.rimuoviAscoltoSbloccoAudio();
-
-      try {
-        this.audioConsentito = true;
-        this.inizializzaWebAudioSuVideoReale();
-        this.impostaMuteReale(false);
-
-        try { this.player.pause(); } catch {}
-        try { this.player.currentTime(0); } catch {}
-
-        this.player.one('playing', () => {
-          this.sfumaGuadagnoVerso(1, this.durataFadeAudioMs);
+            this.player.pause();
+          } catch {} // Provo a mettere in pausa senza rompere se il player non e' pronto
+          try {
+            this.player.currentTime(0);
+          } catch {} // Provo a resettare il tempo del video senza rompere in caso di errore
         });
+      })
+    );
 
-        const p = this.player.play();
-        if (p && typeof p.catch === 'function') {
-          p.catch(() => {
-            this.impostaMuteReale(true);
+    this.subs.add(
+      // Registro anche questa subscription per gestirne la cleanup
+      this.cambioLinguaService.cambioLinguaApplicata$.subscribe(
+        // Reagisco a lingua applicata con la nuova mappa contenuti
+        ({ mappaNovita }) => {
+          // Estraggo la mappa delle novita dal payload
+          this.titoliAlt = this.descrizioni.map(
+            // Ricostruisco i titoli alt in base alle descrizioni correnti
+            (d) => mappaNovita[d]?.titolo || '' // Prendo il titolo dalla mappa o fallback a stringa vuota
+          );
+          this.imgTitolo = this.descrizioni.map(
+            // Ricostruisco le immagini titolo in base alle descrizioni correnti
+            (d) => mappaNovita[d]?.img_titolo || '' // Prendo l'immagine titolo dalla mappa o fallback a stringa vuota
+          );
+          this.sottotitoli = this.descrizioni.map(
+            // Ricostruisco i sottotitoli in base alle descrizioni correnti
+            (d) => mappaNovita[d]?.sottotitolo || '' // Prendo il sottotitolo dalla mappa o fallback a stringa vuota
+          );
+
+          this.mappaNovitaCorrente = mappaNovita; // Salvo la mappa corrente per overlay e lookup successivi
+          this.trailers = this.descrizioni.map(
+            (d) => mappaNovita[d]?.trailer || ''
+          ); // Ricostruisco la lista trailer per le slide
+
+          this.aggiornaOverlayPerIndiceCorrente(this.indiceCorrente, true); // Aggiorno l'overlay della slide corrente con transizione
+
+          const token = this.idCambioLinguaVideo; // Memorizzo il token corrente per verificare coerenza dopo il fade-out
+          const stop = this.promessaStopCambioLingua; // Recupero la promise di stop/fade avviata nella fase 'avviato'
+          this.promessaStopCambioLingua = null; // Azzero la reference per evitare riusi non voluti
+
+          (stop ?? Promise.resolve()).finally(() => {
+            // Aspetto che lo stop sia finito (o continuo subito se non c'era)
+            if (token !== this.idCambioLinguaVideo) return; // Non riparto se il token e' cambiato nel frattempo
+            this.avviaTrailerCorrenteDopo(this.RITARDO_MOSTRA_PLAYER_MS); // Riavvio il trailer dopo il ritardo previsto
           });
         }
-      } catch {
-        this.impostaMuteReale(true);
-      }
-    };
-
-    document.addEventListener('click', this.sbloccaAudioBinding as any, {
-      passive: true,
-      once: true,
-    });
+      )
+    );
   }
 
+  /**
+ * Metodo eseguito dopo il rendering della vista del componente.
+ *
+ * Tenta l'inizializzazione del player video quando gli elementi DOM
+ * necessari dovrebbero essere disponibili.
+ *
+ * @returns void
+ */
+  ngAfterViewInit(): void {
+    this.inizializzaPlayerSePronto(); // Provo a inizializzare il player ora che la view dovrebbe essere pronta
+  }
+
+  /**
+ * Metodo eseguito alla distruzione del componente.
+ *
+ * Interrompe timer e autoscroll, rimuove eventuali listener per lo sblocco audio,
+ * disconnette WebAudio, distrugge il player e chiude tutte le subscription.
+ *
+ * @returns void
+ */
+  ngOnDestroy(): void {
+    this.fermaAvvioPendete(); // Fermo eventuali avvii trailer pendenti (timer/sequence)
+    this.fermaAutoscroll(); // Fermo l'autoscroll e resetto il relativo timer
+
+    try {
+      // Provo a rimuovere l'ascolto per lo sblocco audio senza rischiare errori
+      this.rimuoviAscoltoSbloccoAudio(); // Tolgo l'event listener di click usato per sbloccare l'audio
+    } catch {}
+
+    try {
+      // Provo a disconnettere il nodo sorgente del Web Audio in modo sicuro
+      if (this.nodoSorgente) this.nodoSorgente.disconnect(); // Disconnetto la sorgente dal grafo audio se esiste
+    } catch {}
+    try {
+      // Provo a disconnettere il nodo di guadagno del Web Audio in modo sicuro
+      if (this.nodoGuadagno) this.nodoGuadagno.disconnect(); // Disconnetto il GainNode dal grafo audio se esiste
+    } catch {}
+    try {
+      // Provo a chiudere l'AudioContext se e' ancora aperto
+      if (this.contestoAudio && this.contestoAudio.state !== 'closed')
+        this.contestoAudio.close(); // Chiudo l'AudioContext per rilasciare risorse
+    } catch {}
+
+    try {
+      // Provo a distruggere il player video senza far fallire la teardown
+      if (this.player) this.player.dispose(); // Smonto il player
+    } catch {}
+
+    this.subs.unsubscribe(); // Disiscrivo tutte le subscription RxJS registrate
+  }
+
+/**
+ * Carica e prepara i dati del carosello (immagini, descrizioni, titoli, trailer, overlay).
+ *
+ * La logica completa e' delegata alla utility dedicata.
+ *
+ * @returns void
+ */
+  caricaDati(): void {
+    // Carico e preparo i dati del carosello
+    CaroselloDatiUtility.caricaDati(this); // delego tutta la logica di caricamento dati alla utility passando il componente come contesto
+  }
+
+  @HostListener('window:blur', []) // Mi aggancio all'evento blur della finestra (perdita focus)
+/**
+ * Gestisce la perdita di focus della finestra.
+ *
+ * La logica completa (pause, gestione player e stati) e' delegata alla utility dedicata.
+ *
+ * @returns void
+ */
+  gestisciBlurFinestra(): void {
+    // Gestisco cosa succede quando la finestra perde il focus
+    CaroselloFocusUtility.gestisciBlurFinestra(this); // delego la logica blur/focus alla utility passando il componente come contesto
+  }
+
+  @HostListener('window:focus', []) // Mi aggancio all'evento focus della finestra (ritorno focus)
+/**
+ * Gestisce il ritorno di focus della finestra.
+ *
+ * La logica completa (ripresa, gestione player e stati) e' delegata alla utility dedicata.
+ *
+ * @returns void
+ */
+  gestisciFocusFinestra(): void {
+    CaroselloFocusUtility.gestisciFocusFinestra(this); // delego la logica blur/focus alla utility passando il componente come contesto
+  }
+
+  @HostListener('window:scroll', []) // Mi aggancio all'evento scroll della finestra
+/**
+ * Gestisce lo scroll della finestra per aggiornare lo stato 'alTop' e le pause correlate.
+ *
+ * La logica completa (soglia, avvio/stop autoscroll e stati) e' delegata alla utility dedicata.
+ *
+ * @returns void
+ */
+  gestisciScroll(): void {
+    CaroselloTopUtility.gestisciScroll(this); // delego la logica top/non-top alla utility passando il componente come contesto
+  }
+
+  /**
+ * Porta il carosello alla slide successiva.
+ *
+ * @param daAutoscroll Indica se l'avanzamento e' stato avviato dall'autoscroll.
+ * @returns void
+ */
+  vaiAvanti(daAutoscroll: boolean = false): void {
+    CaroselloScrollUtility.vaiAvanti(this, daAutoscroll); // delego tutta la logica di avanzamento all'utility passando il componente come contesto
+  }
+
+/**
+ * Porta il carosello alla slide precedente.
+ *
+ * @returns void
+ */
+  vaiIndietro(): void {
+    CaroselloScrollUtility.vaiIndietro(this); // delego tutta la logica di arretramento all'utility passando il componente come contesto
+  }
+
+/**
+ * Seleziona una slide specifica partendo da un indice 0-based.
+ *
+ * @param indiceZeroBased Indice 0-based della slide reale da selezionare.
+ * @returns void
+ */
+  selezionaIndice(indiceZeroBased: number): void {
+    // Seleziono una slide specifica partendo da un indice 0-based
+    CaroselloScrollUtility.selezionaIndice(this, indiceZeroBased); // delego tutta la logica di selezione all'utility passando il componente come contesto
+  }
+
+/**
+ * Aggiorna la trasformazione CSS del carosello in base all'indice corrente.
+ *
+ * @param conAnimazione Se true mantiene attiva la transizione CSS, altrimenti la disattiva.
+ * @returns void
+ */
+  aggiornaTrasformazione(conAnimazione: boolean): void {
+    // Aggiorno la trasformazione CSS del carosello con o senza animazione
+    this.transizioneAttiva = conAnimazione; // Attivo o disattivo la transizione CSS
+    this.stileTrasformazione = `translateX(-${this.indiceCorrente * 100}%)`; // Calcolo la translateX in base all'indice corrente
+  }
+
+/**
+ * Ferma eventuali avvii trailer pianificati e invalida la sequenza corrente.
+ *
+ * @returns void
+ */
+  fermaAvvioPendete(): void {
+    // Cancello eventuali avvii trailer schedulati e invalido la sequenza
+    CaroselloVideoUtility.fermaAvvioPendete(this); // delego la gestione dei timer/token trailer alla utility passando il componente come contesto
+  }
+
+/**
+ * Prova ad avviare il trailer iniziale quando le condizioni sono soddisfatte.
+ *
+ * @returns void
+ */
+  provaAvvioInizialeTrailer(): void {
+    // Provo ad avviare il trailer iniziale se tutte le condizioni sono soddisfatte
+    CaroselloVideoUtility.provaAvvioInizialeTrailer(this); // delego l'avvio iniziale trailer alla utility passando il componente come contesto
+  }
+
+/**
+ * Calcola l'indice reale 0-based della slide corrente ignorando eventuali cloni.
+ *
+ * @returns Indice reale 0-based della slide corrente.
+ */
+  private getIndiceRealeZeroBased(): number {
+    return CaroselloGettersUtility.getIndiceRealeZeroBased(this); // delego il calcolo dell'indice reale alla utility passando il componente come contesto
+  }
+
+  /**
+ * Restituisce il titolo della slide precedente rispetto a quella corrente.
+ *
+ * @returns Titolo della slide precedente.
+ */
+  getPrevTitolo(): string {
+    return CaroselloGettersUtility.getPrevTitolo(this); // delego il calcolo del titolo precedente alla utility passando il componente come contesto
+  }
+
+/**
+ * Restituisce il titolo della slide successiva rispetto a quella corrente.
+ *
+ * @returns Titolo della slide successiva.
+ */
+  getNextTitolo(): string {
+    // Recupero il titolo della slide successiva (rispetto alla corrente)
+    return CaroselloGettersUtility.getNextTitolo(this); // delego il calcolo del titolo successivo alla utility passando il componente come contesto
+  }
+
+/**
+ * Restituisce il titolo della slide corrente.
+ *
+ * @returns Titolo della slide corrente.
+ */
+  getTitoloCorrente(): string {
+    return CaroselloGettersUtility.getTitoloCorrente(this); // delego il calcolo del titolo corrente alla utility passando il componente come contesto
+  }
+
+  /**
+ * Restituisce l'immagine titolo della slide corrente.
+ *
+ * @returns URL dell'immagine titolo della slide corrente.
+ */
+  getImgTitoloCorrente(): string {
+    return CaroselloGettersUtility.getImgTitoloCorrente(this); // delego il calcolo dell'immagine titolo corrente alla utility passando il componente come contesto
+  }
+
+  /**
+ * Restituisce il sottotitolo della slide corrente.
+ *
+ * @returns Sottotitolo della slide corrente.
+ */
+  getSottotitoloCorrente(): string {
+    return CaroselloGettersUtility.getSottotitoloCorrente(this); // delego il calcolo del sottotitolo corrente alla utility passando il componente come contesto
+  }
+
+  /**
+ * Aggiorna i contenuti dell'overlay in base a un indice del carosello (1-based).
+ *
+ * @param indiceCorrenteNuovo Indice 1-based del carosello.
+ * @param conTransizione Se true applica transizione (fade/blackout/preload), altrimenti aggiorna subito.
+ * @returns void
+ */
+  aggiornaOverlayPerIndiceCorrente(
+    indiceCorrenteNuovo: number, // Ricevo l'indice del carosello nel formato interno 1-based
+    conTransizione: boolean // Decido se applicare la transizione (fade/blackout/preload) oppure aggiornare subito
+  ): void {
+    // Espongo una funzione che calcola l'indice reale e delega l'impostazione dell'overlay
+    CaroselloOverlayUtility.aggiornaOverlayPerIndiceCorrente(
+      this,
+      indiceCorrenteNuovo,
+      conTransizione
+    ); // delego tutta la logica overlay alla utility passando il componente come contesto
+  }
+
+  /**
+ * Notifica che l'immagine titolo corrente e' stata caricata ed e' pronta.
+ *
+ * @returns void
+ */
+  segnalaTitoloCaricato(): void {
+    CaroselloDatiUtility.segnalaTitoloCaricato(this); // delego la gestione della readiness titolo alla utility passando il componente come contesto
+  }
+
+/**
+ * Notifica che uno sfondo del carosello e' stato caricato.
+ *
+ * @param indice Indice dello sfondo caricato.
+ * @returns void
+ */
+  segnalaSfondoCaricato(indice: number): void {
+    // Notifico che lo sfondo a un certo indice e' stato caricato
+    CaroselloDatiUtility.segnalaSfondoCaricato(this, indice); // delego la gestione della readiness sfondi alla utility passando il componente come contesto
+  }
+
+/**
+ * Avvia un cambio slide assicurando fade-out audio e stop video prima dell'azione di scorrimento.
+ *
+ * @param azioneScorrimento Funzione che esegue lo scorrimento effettivo (avanti/indietro/selezione).
+ * @returns void
+ */
+  avviaCambioSlideConFade(azioneScorrimento: () => void): void {
+    // Avvio un cambio slide assicurandomi di fare fade-out audio e stop video
+    CaroselloScrollStateUtility.avviaCambioSlideConFade(
+      this,
+      azioneScorrimento
+    ); // delego fade+stop e cambio slide alla utility passando il componente come contesto
+  }
+
+/**
+ * Pianifica l'avvio del trailer della slide corrente dopo un ritardo.
+ *
+ * @param ms Ritardo in millisecondi prima dell'avvio del trailer.
+ * @returns void
+ */
+  avviaTrailerCorrenteDopo(ms: number): void {
+    // Pianifico l'avvio del trailer della slide corrente dopo un certo ritardo
+    CaroselloVideoUtility.avviaTrailerCorrenteDopo(this, ms); // delego l'orchestrazione trailer/player alla utility passando il componente come contesto
+  }
+
+/**
+ * Collega la gestione dell'evento di fine trailer del player.
+ *
+ * @returns void
+ */
+  collegaFineTrailer(): void {
+    CaroselloPlayerUtility.collegaFineTrailer(this); // delego la gestione evento ended alla utility passando il componente come contesto
+  }
+
+/**
+ * Riavvia il trailer corrente dopo un cambio lingua, gestendo stop e ripartenza.
+ *
+ * @returns void
+ */
+  riavviaTrailerCorrenteDopoCambioLingua(): void {
+    CaroselloVideoUtility.riavviaTrailerCorrenteDopoCambioLingua(this); // delego la logica di riavvio trailer post-lingua alla utility passando il componente come contesto
+  }
+
+/**
+ * Prova ad avviare la riproduzione con audio se le policy del browser lo consentono.
+ *
+ * @returns void
+ */
+  tentaAutoplayConAudio(): void {
+    CaroselloVideoUtility.tentaAutoplayConAudio(this); // delego la strategia autoplay audio alla utility passando il componente come contesto
+  }
+
+  /**
+ * Avvia la riproduzione in muto e, se richiesto, prepara lo sblocco audio su interazione utente.
+ *
+ * @param consentiSblocco Se true prepara la logica di sblocco audio su interazione.
+ * @returns void
+ */
+  avviaMutatoConOpzioneSblocco(consentiSblocco: boolean): void {
+    CaroselloAudioUtility.avviaMutatoConOpzioneSblocco(this, consentiSblocco); // delego la strategia mutata + sblocco alla utility passando il componente come contesto
+  }
+
+/**
+ * Prepara un listener per tentare lo sblocco dell'audio alla prima interazione utente utile.
+ *
+ * @returns void
+ */
+  preparaSbloccoAudioSuInterazione(): void {
+    CaroselloAudioUtility.preparaSbloccoAudioSuInterazione(this); // delego la preparazione sblocco audio alla utility passando il componente come contesto
+  }
+
+/**
+ * Rimuove eventuali listener registrati per lo sblocco audio su interazione.
+ *
+ * @returns void
+ */
   rimuoviAscoltoSbloccoAudio(): void {
-    if (!this.sbloccoAudioAttivo) return;
-    this.sbloccoAudioAttivo = false;
-
-    if (this.sbloccaAudioBinding) {
-      document.removeEventListener('click', this.sbloccaAudioBinding as any);
-      this.sbloccaAudioBinding = null;
-    }
+    CaroselloAudioUtility.rimuoviAscoltoSbloccoAudio(this); // delego la rimozione listener sblocco audio alla utility passando il componente come contesto
   }
 
+/**
+ * Inizializza la catena WebAudio sul video reale del player per controllare il volume via GainNode.
+ *
+ * @returns void
+ */
   inizializzaWebAudioSuVideoReale(): void {
-    try {
-
-      if (!this.contestoAudio) {
-        this.contestoAudio = new (window as any).AudioContext();
-      }
-      const el = this.ottieniElementoVideoReale();
-      if (!el) return;
-      this.collegaWebAudioAlVideo(el);
-    } catch {}
+    CaroselloAudioUtility.inizializzaWebAudioSuVideoReale(this); // delego l'inizializzazione WebAudio alla utility passando il componente come contesto
   }
 
+/**
+ * Restituisce l'elemento video reale contenuto nel player.
+ *
+ * @returns Elemento video reale (o null/undefined a seconda dello stato del player).
+ */
   ottieniElementoVideoReale(): any {
-    try {
-      if (!this.player || !this.player.el) return null;
-      const root = this.player.el() as HTMLElement;
-      const elVideo = root.querySelector('video');
-      return elVideo || null;
-    } catch {
-      return null;
-    }
+    return CaroselloAudioUtility.ottieniElementoVideoRealePubblico(this); // delego la ricerca del video reale alla utility passando il componente come contesto
   }
 
+  /**
+ * Collega l'elemento video reale al WebAudio (MediaElementSource + GainNode).
+ *
+ * @param elVideo Elemento video reale da collegare.
+ * @returns void
+ */
   collegaWebAudioAlVideo(elVideo: any): void {
-    if (!elVideo) return;
-    if (this.elementoVideoReale === elVideo && this.nodoSorgente && this.nodoGuadagno) return;
-
-    try {
-      this.applicaAttributiVideoReale();
-
-      if (this.nodoSorgente) {
-        try { this.nodoSorgente.disconnect(); } catch {}
-      }
-      if (this.nodoGuadagno) {
-        try { this.nodoGuadagno.disconnect(); } catch {}
-      }
-
-      this.elementoVideoReale = elVideo;
-      this.nodoSorgente = this.contestoAudio.createMediaElementSource(this.elementoVideoReale);
-      this.nodoGuadagno = this.contestoAudio.createGain();
-      this.nodoGuadagno.gain.value = 1;
-
-      this.nodoSorgente.connect(this.nodoGuadagno).connect(this.contestoAudio.destination);
-    } catch {}
+    CaroselloAudioUtility.collegaWebAudioAlVideoPubblico(this, elVideo); // delego il collegamento WebAudio al video alla utility passando il componente come contesto
   }
 
+/**
+ * Verifica se il player ha sostituito il tag video e, se necessario, ricollega WebAudio.
+ *
+ * @returns void
+ */
   verificaRicollegamentoVideo(): void {
-    const el = this.ottieniElementoVideoReale();
-    if (el && el !== this.elementoVideoReale) {
-      this.applicaAttributiVideoReale();
-      this.collegaWebAudioAlVideo(el);
-    }
+    CaroselloAudioUtility.verificaRicollegamentoVideo(this); // delego la verifica/ricollegamento WebAudio alla utility passando il componente come contesto
   }
 
+/**
+ * Sfuma il guadagno WebAudio verso un valore target.
+ *
+ * @param target Valore target del guadagno.
+ * @param durataMs Durata della sfumatura in millisecondi.
+ * @returns Promise risolta al termine della sfumatura.
+ */
   sfumaGuadagnoVerso(target: number, durataMs: number): Promise<void> {
-    return new Promise((risolvi) => {
-      try {
-        if (!this.audioConsentito || !this.contestoAudio || !this.nodoGuadagno) return risolvi();
-
-        const avviaRamp = () => {
-          const t0 = this.contestoAudio.currentTime;
-          const sec = Math.max(0, (durataMs || 0) / 1000);
-          const clamped = Math.max(0, Math.min(1, target));
-          const valoreAttuale = this.nodoGuadagno.gain.value;
-
-          this.nodoGuadagno.gain.cancelScheduledValues(t0);
-          this.nodoGuadagno.gain.setValueAtTime(valoreAttuale, t0);
-          this.nodoGuadagno.gain.linearRampToValueAtTime(clamped, t0 + sec);
-
-          setTimeout(() => risolvi(), durataMs || 0);
-        };
-
-        if (this.contestoAudio.state === 'suspended') {
-           try { this.contestoAudio.resume().catch(() => {}); } catch {}
- avviaRamp();
-        } else {
-          avviaRamp();
-        }
-      } catch {
-        risolvi();
-      }
-    });
+    return CaroselloAudioUtility.sfumaGuadagnoVerso(this, target, durataMs); // delego la sfumatura audio alla utility passando il componente come contesto
   }
 
+ /**
+ * Applica attributi necessari direttamente sul tag video reale del player.
+ *
+ * @returns void
+ */
   applicaAttributiVideoReale(): void {
-    try {
-      const el = this.ottieniElementoVideoReale();
-      if (!el) return;
-      el.setAttribute('crossorigin', 'anonymous');
-      el.setAttribute('playsinline', '');
-    } catch {}
+    CaroselloAudioUtility.applicaAttributiVideoReale(this); // delego l'applicazione attributi al video reale alla utility passando il componente come contesto
   }
 
-  impostaMuteReale(attivo: boolean): void {
-    try {
-      const el = this.ottieniElementoVideoReale();
-      if (el) {
-        el.muted = attivo;
-        if (attivo) el.setAttribute('muted', '');
-        else el.removeAttribute('muted');
-      }
-      if (this.player && typeof this.player.muted === 'function') {
-        this.player.muted(!!attivo);
-      }
-    } catch {}
+/**
+ * Imposta il mute sul video reale del player.
+ *
+ * @param mute Se true abilita il mute, altrimenti lo disabilita.
+ * @returns void
+ */
+  impostaMuteReale(mute: boolean): void {
+    // Imposto il mute sul tag video
+    CaroselloAudioUtility.impostaMuteReale(this, mute); // delego l'impostazione del mute reale alla utility
   }
 
-vaiAvantiDaFineTrailer(): void {
-  if (this.scorrimentoInCorso || this.immagini.length === 0) return;
-  this.scorrimentoInCorso = true;
-
-  const prossimo = this.indiceCorrente + 1;
-
-  this.aggiornaOverlayPerIndiceCorrente(prossimo, true);
-
-  this.indiceCorrente = prossimo;
-  this.salvaIndiceRealeInStorage(this.getIndiceRealeZeroBased());
-  this.aggiornaTrasformazione(true);
-
-  const chiudi = () => {
-    this.scorrimentoInCorso = false;
-
-    if (this.alTop && !this.pausaPerScroll) {
-      this.avviaTrailerCorrenteDopo(this.RITARDO_MOSTRA_PLAYER_MS);
-    } else {
-      this.mostraVideo = false;
-    }
-  };
-
-  if (this.indiceCorrente > this.immagini.length) {
-    setTimeout(() => {
-      this.transizioneAttiva = false;
-      this.indiceCorrente = 1;
-      this.salvaIndiceRealeInStorage(this.getIndiceRealeZeroBased());
-      this.aggiornaTrasformazione(false);
-      chiudi();
-    }, this.durataTransizioneMs);
-  } else {
-    setTimeout(() => {
-      chiudi();
-    }, this.durataTransizioneMs);
-  }
-}
-inizializzaPlayerSePronto(): void {
-  if (this.playerInizializzato) return;
-  if (!this.riproduttore || !this.riproduttore.nativeElement) return;
-
-  this.playerInizializzato = true;
-
-  this.player = videojs(this.riproduttore.nativeElement, {
-    autoplay: false,
-    muted: false,
-    controls: false,
-    loop: false,
-    preload: 'auto',
-    playsinline: true,
-  });
-
-  try { this.player.autoplay && this.player.autoplay(false); } catch {}
-
-  this.mostraVideo = false;
-
-    this.player.on('techready', () => this.verificaRicollegamentoVideo());
-
-  this.player.on('loadstart', () => {
-    this.verificaRicollegamentoVideo();
-    this.tentativiTrailer = 0;
-  });
-
-  // Firefox: se si blocca in waiting/stalled, fai retry soft
-  this.player.on('stalled', () => this.pianificaControlloStallo(this.numeroSequenzaAvvio));
-  this.player.on('waiting', () => this.pianificaControlloStallo(this.numeroSequenzaAvvio));
-  this.player.on('error',   () => this.pianificaControlloStallo(this.numeroSequenzaAvvio));
-
-  this.collegaFineTrailer();
-  this.provaAvvioInizialeTrailer();
-}
-
-
-private copertureAncoraVisibili(): boolean {
-  const selettori = [
-    'app-saturno',
-    'app-sfondo',
-    '.loading-overlay', // se esiste ancora
-  ];
-
-  for (const sel of selettori) {
-    const el = document.querySelector(sel) as HTMLElement | null;
-    if (!el) continue;
-
-    const st = window.getComputedStyle(el);
-    const op = Number(st.opacity || '1');
-
-    const visibile =
-      st.display !== 'none' &&
-      st.visibility !== 'hidden' &&
-      op > 0.01;
-
-    if (visibile) return true;
+/**
+ * Avanza alla slide successiva quando il trailer termina, senza riavviare l'autoscroll.
+ *
+ * @returns void
+ */
+  vaiAvantiDaFineTrailer(): void {
+    // Avanzo alla slide successiva quando il trailer termina (senza riavviare autoscroll)
+    CaroselloScrollStateUtility.vaiAvantiDaFineTrailer(this); // delego la logica di avanzamento da fine trailer alla utility
   }
 
-  return false;
-}
-
-private attendiCopertureNonVisibili(timeoutMs: number = 8000): Promise<void> {
-  return new Promise((resolve) => {
-    if (!this.copertureAncoraVisibili()) return resolve();
-
-    let finito = false;
-    const t0 = performance.now();
-
-    const stop = () => {
-      if (finito) return;
-      finito = true;
-      try { obs.disconnect(); } catch {}
-      resolve();
-    };
-
-    const check = () => {
-      if (finito) return;
-
-      const elapsed = performance.now() - t0;
-      if (elapsed >= timeoutMs) return stop(); // fallback
-
-      if (!this.copertureAncoraVisibili()) return stop();
-
-      requestAnimationFrame(check);
-    };
-
-    const obs = new MutationObserver(() => {
-      if (!finito && !this.copertureAncoraVisibili()) stop();
-    });
-
-    try {
-      obs.observe(document.body, {
-        childList: true,
-        subtree: true,
-        attributes: true,
-        attributeFilter: ['class', 'style'],
-      });
-    } catch {}
-
-    requestAnimationFrame(check);
-  });
-}
-indiciSfondiCritici: number[] = [];
-
-private impostaIndiciSfondiCritici(): void {
-  const len = this.immagini.length;
-  if (!len) { this.indiciSfondiCritici = []; return; }
-
-  const cur = this.getIndiceRealeZeroBased();
-  const prev = (cur - 1 + len) % len;
-  const next = (cur + 1) % len;
-
-  this.indiciSfondiCritici = Array.from(new Set([cur, prev, next]));
-}
-
-private sfondiCriticiPronti(): boolean {
-  if (!this.indiciSfondiCritici.length) return true;
-  return this.indiciSfondiCritici.every((i) => !!this.sfondiCaricati[i]);
-}
-
-private onUscitaDalTop(): void {
-  if (!this.player || this.pausaPerScroll) return;
-
-  this.pausaPerScroll = true;
-
-  this.fermaAvvioPendete();
-  this.numeroSequenzaAvvio++;
-
-  this.mostraVideo = false;
-
-  this.sfumaGuadagnoVerso(0, this.durataFadeAudioMs).finally(() => {
-    try { this.player.pause(); } catch {}
-    try { this.player.currentTime(0); } catch {}
-  });
-
-  // 👇 AUTOSCROLL: riparte da zero
-  this.avviaAutoscroll();
-}
-
-
-
-private onRitornoAlTop(): void {
-  if (!this.player || !this.pausaPerScroll) return;
-
-  this.pausaPerScroll = false;
-
-  // 👇 AUTOSCROLL: STOP + RESET
-  this.fermaAutoscroll();
-
-  try { this.player.currentTime(0); } catch {}
-
-  this.avviaTrailerCorrenteDopo(this.RITARDO_MOSTRA_PLAYER_MS);
-}
-
-private avviaAutoscroll(): void {
-  // solo se non sono al top
-  if (this.alTop) return;
-
-  this.fermaAutoscroll(); // reset SEMPRE
-
-  this.timerAutoscroll = setTimeout(() => {
-    this.timerAutoscroll = null;
-
-    // guardie
-    if (this.alTop) return;
-
-    // se sto gia' scorrendo, ripianifica e basta
-    if (this.scorrimentoInCorso) {
-      this.avviaAutoscroll();
-      return;
-    }
-
-    // IMPORTANTISSIMO:
-    // NON richiamare qui avviaAutoscroll() ricorsivo.
-    // Lo fa vaiAvanti() a fine transizione.
-    this.vaiAvanti(true);
-  }, this.INTERVALLO_AUTOSCROLL_MS);
-}
-
-private fermaAutoscroll(): void {
-  if (this.timerAutoscroll) {
-    clearTimeout(this.timerAutoscroll);
-    this.timerAutoscroll = null;
-  }
-}
-// + aggiungi helper (in fondo o dove preferisci)
-leggiIndiceRealeDaStorage(): number | null {
-  try {
-    const v = window && window.localStorage
-      ? window.localStorage.getItem(this.chiaveStorageIndice)
-      : null;
-    if (v === null) return null;
-    const n = Number(v);
-    return Number.isInteger(n) ? n : null;
-  } catch {
-    return null;
-  }
-}
-
-salvaIndiceRealeInStorage(indiceReale: number): void {
-  try {
-    if (window && window.localStorage) {
-      window.localStorage.setItem(this.chiaveStorageIndice, String(indiceReale));
-    }
-  } catch {}
-}
-
-private attendiEventoPlayer(evento: string, timeoutMs: number): Promise<boolean> {
-  return new Promise((resolve) => {
-    if (!this.player) return resolve(false);
-
-    let finito = false;
-
-    const onEv = () => stop(true);
-
-    const stop = (ok: boolean) => {
-      if (finito) return;
-      finito = true;
-      try { this.player.off(evento, onEv); } catch {}
-      resolve(ok);
-    };
-
-    try { this.player.one(evento, onEv); } catch { return resolve(false); }
-
-    setTimeout(() => stop(false), Math.max(0, timeoutMs));
-  });
-}
-
-private pianificaControlloStallo(token: number): void {
-  setTimeout(() => {
-    if (token !== this.numeroSequenzaAvvio) return;
-    if (!this.player) return;
-
-    // se sei uscito dal top o sei in pausa logica, non fare nulla
-    if (!this.alTop || this.pausaPerScroll || this.pausaPerBlur) return;
-
-    try {
-      const err = this.player.error && this.player.error();
-      if (err) {
-        this.riprovaTrailerCorrente(token);
-        return;
-      }
-
-      const rs = typeof this.player.readyState === 'function' ? this.player.readyState() : 0;
-      const paused = typeof this.player.paused === 'function' ? this.player.paused() : true;
-
-      // readyState <= 2: metadata o meno, facile che sia bloccato
-      if (!paused && rs <= 2) {
-        this.riprovaTrailerCorrente(token);
-      }
-    } catch {}
-  }, 2500);
-}
-
-private riprovaTrailerCorrente(token: number): void {
-  if (token !== this.numeroSequenzaAvvio) return;
-  if (!this.alTop || this.pausaPerScroll || this.pausaPerBlur) return;
-  if (this.tentativiTrailer >= this.MAX_TENTATIVI_TRAILER) return;
-
-  this.tentativiTrailer++;
-
-  const len = this.immagini.length;
-  const indiceReale = (this.indiceCorrente - 1 + len) % len;
-  const urlTrailer = this.trailers[indiceReale] || '';
-  if (!urlTrailer) return;
-
-  this.caricaTrailerEAvvia(urlTrailer, token);
-}
-
-private async caricaTrailerEAvvia(urlTrailer: string, token: number): Promise<void> {
-  if (!this.player) return;
-
-  // reset pulito prima del src
-  this.mostraVideo = false;
-  this.sfumaGuadagnoVerso(0, 0);
-
-  try { this.player.pause(); } catch {}
-  try { this.player.currentTime(0); } catch {}
-
-  try {
-    this.player.src({ src: urlTrailer, type: 'video/mp4' });
-    try { this.player.load?.(); } catch {}
-    this.applicaAttributiVideoReale();
-  } catch {
-    return;
+/**
+ * Inizializza il player video quando il riferimento DOM e le condizioni necessarie sono disponibili.
+ *
+ * @returns void
+ */
+  inizializzaPlayerSePronto(): void {
+    // Inizializzo video.js quando il ViewChild del riproduttore e' disponibile
+    CaroselloPlayerUtility.inizializzaPlayerSePronto(this); // delego l'inizializzazione del player alla utility
   }
 
-  // aspetta metadata e canplay (Firefox spesso ne ha bisogno)
-  await this.attendiEventoPlayer('loadedmetadata', 4000);
-  if (token !== this.numeroSequenzaAvvio) return;
-
-  // micro workaround: forza tiny seek
-  try { this.player.currentTime(0.01); } catch {}
-
-  const okCanPlay = await this.attendiEventoPlayer('canplay', 6000);
-  if (token !== this.numeroSequenzaAvvio) return;
-
-  if (!this.alTop || this.pausaPerScroll || this.pausaPerBlur) {
-    this.mostraVideo = false;
-    return;
+/**
+ * Verifica se sono ancora presenti coperture/overlay visibili sopra la pagina.
+ *
+ * @returns true se esistono ancora coperture visibili, false altrimenti.
+ */
+  private copertureAncoraVisibili(): boolean {
+    return CaroselloCopertureUtility.copertureAncoraVisibili(); // delego il controllo coperture alla utility
   }
 
-  this.mostraVideo = true;
-
-// PREPARA WebAudio PRIMA del play (non blocca: niente await su resume)
-this.inizializzaWebAudioSuVideoReale();
-try {
-  if (this.nodoGuadagno && this.contestoAudio) {
-    const t0 = this.contestoAudio.currentTime;
-    this.nodoGuadagno.gain.cancelScheduledValues(t0);
-    this.nodoGuadagno.gain.setValueAtTime(0, t0);
+/**
+ * Attende che le coperture non siano piu' visibili oppure che scada un timeout.
+ *
+ * @param timeoutMs Tempo massimo di attesa in millisecondi.
+ * @returns Promise risolta quando le coperture spariscono o al timeout.
+ */
+  private attendiCopertureNonVisibili(timeoutMs: number = 8000): Promise<void> {
+    return CaroselloCopertureUtility.attendiCopertureNonVisibili(timeoutMs); // delego l'attesa coperture alla utility
   }
-} catch {}
 
-// micro-delay: aiuta il caso /login (audio che “parte in sync”)
-await new Promise((r) => setTimeout(r, 140));
-if (token !== this.numeroSequenzaAvvio) return;
-if (!this.alTop || this.pausaPerScroll || this.pausaPerBlur) {
-  this.mostraVideo = false;
-  return;
-}
-
-this.player.one('playing', () => {
-  if (token !== this.numeroSequenzaAvvio) return;
-  if (!this.alTop || this.pausaPerScroll || this.pausaPerBlur) return;
-  // qui e' davvero partito: da ora possiamo considerare l'audio “consentito”
-  this.audioConsentito = true;
-  try {
-    if (this.contestoAudio && this.contestoAudio.state === 'suspended') {
-      this.contestoAudio.resume().catch(() => {});
-    }
-  } catch {}
-  this.sfumaGuadagnoVerso(1, this.durataFadeAudioMs);
-});
-
-// tenta play con audio; se non permesso -> fallback mutato + sblocco (come prima)
-try {
-  this.impostaMuteReale(false);
-  const p = this.player.play();
-  if (p && typeof p.then === 'function') {
-    p.catch(() => {
-      this.avviaMutatoConOpzioneSblocco(true);
-    });
+  /**
+ * Avvia o ripianifica l'autoscroll quando le condizioni lo consentono.
+ *
+ * @returns void
+ */
+  private avviaAutoscroll(): void {
+    CaroselloScrollStateUtility.avviaAutoscroll(this); // delego la gestione autoscroll alla utility passando il componente come contesto
   }
-} catch {
-  this.avviaMutatoConOpzioneSblocco(true);
-}
 
-// se canplay non e' arrivato (timeout), pianifica un controllo stallo
-if (!okCanPlay) this.pianificaControlloStallo(token);
+ /**
+ * Ferma e pulisce il timer dell'autoscroll.
+ *
+ * @returns void
+ */
+  private fermaAutoscroll(): void {
+    CaroselloScrollStateUtility.fermaAutoscroll(this); // delego lo stop autoscroll alla utility passando il componente come contesto
+  }
 
-}
+/**
+ * Legge da localStorage l'indice reale 0-based dell'ultima slide vista.
+ *
+ * @returns Indice reale 0-based salvato, oppure null se non presente/valido.
+ */
+  leggiIndiceRealeDaStorage(): number | null {
+    return CaroselloScrollStateUtility.leggiIndiceRealeDaStorage(this); // delego la lettura storage alla utility passando il componente come contesto
+  }
+
+/**
+ * Salva in localStorage l'indice reale 0-based della slide corrente.
+ *
+ * @param indiceReale Indice reale 0-based da salvare.
+ * @returns void
+ */
+  salvaIndiceRealeInStorage(indiceReale: number): void {
+    CaroselloScrollStateUtility.salvaIndiceRealeInStorage(this, indiceReale); // delego la scrittura storage alla utility passando il componente come contesto
+  }
+
+  /**
+ * Attende un singolo evento del player con timeout.
+ *
+ * @param evento Nome dell'evento del player da attendere.
+ * @param timeoutMs Tempo massimo di attesa in millisecondi.
+ * @returns Promise che risolve a true se l'evento arriva entro il timeout, false altrimenti.
+ */
+  private attendiEventoPlayer(
+    evento: string,
+    timeoutMs: number
+  ): Promise<boolean> {
+    return CaroselloPlayerUtility.attendiEventoPlayer(this, evento, timeoutMs); // delego l'attesa evento player alla utility passando il componente come contesto
+  }
 
 
+/**
+ * Pianifica un controllo per gestire stallo/waiting/error e tentare un recupero soft.
+ *
+ * @param token Token della sequenza corrente per invalidare controlli obsoleti.
+ * @returns void
+ */
+  private pianificaControlloStallo(token: number): void {
+    CaroselloPlayerUtility.pianificaControlloStallo(this, token); // delego la gestione stallo/riprova alla utility passando il componente come contesto
+  }
+
+/**
+ * Riprova ad avviare il trailer corrente in caso di stallo/errore, rispettando token e limiti.
+ *
+ * @param token Token della sequenza corrente per invalidare retry obsoleti.
+ * @returns void
+ */
+  private riprovaTrailerCorrente(token: number): void {
+    CaroselloVideoUtility.riprovaTrailerCorrente(this, token); // delego la logica di retry trailer alla utility passando il componente come contesto
+  }
 }

@@ -7,16 +7,13 @@ header {
   padding: 15px 20px;
   width: 100%;
 
-  /* ░░░ parte sinistra (solo logo) ░░░ */
   .sinistra {
+    margin-left: 125px;
     display: flex;
     align-items: center;
-    gap: 12px;
-    margin-left: 25px;
 
     .menu-categorie {
       pointer-events: auto;
-      margin-left: 120px;
       list-style: none;
       padding: 0;
       display: flex;
@@ -54,8 +51,12 @@ header {
             cursor: pointer;
             white-space: nowrap;
             transition: background 0.4s ease;
+      font-size: 13px;
 
-            &:hover { background-color: #343434; }
+
+            &:hover {
+              background-color: #343434;
+            }
           }
 
           .separatore-tendina {
@@ -69,34 +70,41 @@ header {
           transform: scale(1);
           opacity: 1;
           pointer-events: auto;
+
         }
       }
 
       .info-categorie {
-        box-shadow: 7px 2px 10px rgba(255, 255, 255, 0.051);
+        box-shadow: 7px 2px 10px rgba(44, 44, 44, 0.095);
         display: flex;
         align-items: center;
         gap: 6px;
         cursor: pointer;
         padding: 6px 12px;
         border-radius: 20px;
-        background: linear-gradient(to bottom left, #001f3ff1, #000000e7);
         color: #ececec;
         font-weight: bold;
 
         .icona-pellicola {
-          width: 30px;
-          height: 30px;
+          width: 24px;
+          height: 24px;
           object-fit: cover;
         }
 
-        .icona-tendina { height: 20px; width: 20px; color: #ececec !important; }
-        .label-categorie { font-size: 14px; }
+        .icona-tendina {
+          height: 20px;
+          width: 20px;
+          color: #ececec !important;
+        }
+        .label-categorie {
+          font-size: 14px;
+        }
       }
     }
   }
 
-  .destra { // parte destra dell'header
+  .destra {
+    // parte destra dell'header
     display: flex;
     flex-direction: row;
     // margin-top: -10px;
@@ -146,14 +154,16 @@ header {
       outline: none;
       overflow: hidden;
       pointer-events: none;
-      transition: width 0.4s ease, padding 0.4s ease, opacity 0.4s ease, margin-right 0.4s ease;
+      transition: width 0.4s ease, padding 0.4s ease, opacity 0.4s ease,
+        margin-right 0.4s ease;
 
       &::placeholder {
         color: #ec820a;
         font-style: italic;
       }
 
-      &.aperta { // quando la barra di ricerca è visibile
+      &.aperta {
+        // quando la barra di ricerca è visibile
         width: 200px;
         padding: 6px 10px;
         opacity: 1;
@@ -162,7 +172,7 @@ header {
       }
     }
 
-        .pulsante-lingua {
+    .pulsante-lingua {
       pointer-events: auto;
 
       width: 28px;
@@ -201,13 +211,11 @@ header {
       }
     }
 
-
     .menu-utente {
       pointer-events: auto;
 
       list-style: none;
       margin-right: 15px;
-      padding: 0;
       display: flex;
       align-items: center;
       transition: transform 0.4s ease;
@@ -233,7 +241,8 @@ header {
         .menu-tendina {
           list-style: none;
           margin: 0;
-          padding: 0;
+          padding:0 7px;
+
           min-width: 140px;
 
           .voce-tendina {
@@ -245,7 +254,9 @@ header {
             white-space: nowrap;
             transition: background 0.4s ease;
 
-            &:hover { background-color: #343434; }
+            &:hover {
+              background-color: #343434;
+            }
           }
 
           .separatore-tendina {
@@ -274,7 +285,6 @@ header {
         background: linear-gradient(to bottom left, #001f3ff1, #000000e7);
         color: #ececec;
         font-weight: bold;
-        margin-left: 3px;
 
         .icona {
           width: 20px;
@@ -283,8 +293,12 @@ header {
           color: #ec820a;
         }
 
-        .icona-tendina { color: #ececec !important; }
-        .nome-utente { font-size: 14px; }
+        .icona-tendina {
+          color: #ececec !important;
+        }
+        .nome-utente {
+          font-size: 14px;
+        }
       }
     }
   }
@@ -318,7 +332,9 @@ header {
       height: 22px;
       transition: transform 0.2s ease;
 
-      &:hover { transform: scale(1.1); }
+      &:hover {
+        transform: scale(1.1);
+      }
     }
 
     .icona {
@@ -347,15 +363,14 @@ header {
         transform: translate(-50%, -50%) rotate(-45deg);
       }
     }
-
   }
 }
 .pulsante-login {
-      pointer-events: auto;
+  pointer-events: auto;
 
   background: linear-gradient(135deg, #e79c50, #c97a2b);
   height: 30px;
-  width: 85px;              /* larghezza fissa: non sposta piu l'header */
+  width: 85px; /* larghezza fissa: non sposta piu l'header */
   margin-right: 15px;
   margin-left: 5px;
   color: #ffffff;
@@ -363,11 +378,11 @@ header {
   border: none;
   border-radius: 7px;
   font-size: 16px;
-  padding: 0 10px;          /* puoi anche mettere 0 8px se ti sembra troppo */
+  padding: 0 10px; /* puoi anche mettere 0 8px se ti sembra troppo */
   box-shadow: 0 0 10px #999da0c5;
   cursor: pointer;
 
-  display: inline-flex;     /* testo perfettamente centrato */
+  display: inline-flex; /* testo perfettamente centrato */
   align-items: center;
   justify-content: center;
 
@@ -388,18 +403,101 @@ header {
   }
 }
 
-
-
-.lingua_spinner{
+.lingua_spinner {
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
- app-spinner{
-  position: absolute;
-  top: 21px;
-  left: -2px;
-  // transform: scale(0.5);
- }
+  app-spinner {
+    position: absolute;
+    top: 21px;
+    left: -2px;
+    // transform: scale(0.5);
+  }
+}
+
+.menu-tipo {
+  pointer-events: auto;
+  list-style: none;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  position: relative;
+  font-family: "Quantico";
+  z-index: 9999;
+  margin-left: -5px;
+
+  .tendina {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    background: linear-gradient(to bottom left, #001f3ff1, #000000e7);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    padding: 10px;
+    transform: scale(0.8);
+    opacity: 0;
+    pointer-events: none;
+    transform-origin: top left;
+    transition: transform 0.35s ease, opacity 0.35s ease;
+
+    .menu-tendina {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      min-width: 160px;
+
+      .voce-tendina {
+        padding: 8px 16px;
+        color: #ececec;
+        font-size: 16px;
+        font-weight: 500;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: background 0.4s ease;
+      font-size: 13px;
+
+        &:hover {
+          background-color: #343434;
+        }
+      }
+    }
+
+    &.aperta {
+      transform: scale(1);
+      opacity: 1;
+      pointer-events: auto;
+    }
+  }
+
+  .info-tipo {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    padding: 6px 12px;
+    font-weight: bold;
+    color: #e6e6a6;
+
+    .icona-tendina {
+      height: 20px;
+      width: 20px;
+      color: #e6e6a6 !important;
+
+    }
+    .label-tipo {
+      font-size: 12px;
+    }
+  }
+}
+
+.menu_sinistra {
+  background: linear-gradient(to bottom left, #001f3ff1, #000000e7);
+  box-shadow: 7px 2px 10px rgba(255, 255, 255, 0.051);
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }

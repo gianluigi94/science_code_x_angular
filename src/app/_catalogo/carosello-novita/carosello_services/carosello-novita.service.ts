@@ -1,5 +1,4 @@
-// carosello-novita.service.ts
-// Percorso: _catalogo/carosello-novita/carosello_services/carosello-novita.service.ts
+// Servizio che fornisce al carosello i contenuti 'novità' già pronti all’uso, occupandosi di recuperarli, riordinarli e riutilizzarli senza rifare lavoro inutilmente.
 
 import { Injectable } from '@angular/core';
 import { ApiService } from 'src/app/_servizi_globali/api.service';
@@ -7,30 +6,16 @@ import { IRispostaServer } from 'src/app/_interfacce/IRispostaServer.interface';
 import { film } from 'src/app/_type/film.type';
 import { serie } from 'src/app/_type/serie.type';
 import { forkJoin, map, Observable, shareReplay } from 'rxjs';
-
-export interface NovitaInfo {
-  titolo: string;
-  img_titolo: string;
-  sottotitolo: string;
-  trailer: string;
-}
-
-// DOPO
-export interface NovitaItem {
-  img_sfondo: string;
-  descrizione?: string;
-  created_at?: string;
-  novita?: boolean;
-}
+import { NovitaInfo } from 'src/app/_interfacce/Inovita-info.interface';
+import { NovitaItem } from 'src/app/_interfacce/Inovita-item.interface';
 
 
-@Injectable({ providedIn: 'root' })
+@Injectable({ providedIn: 'root' })// Registro il servizio nel root injector
 export class CaroselloNovitaService {
-  // 🔹 cache della lista novità (film + serie) già filtrata e ordinata
-  private novitaCache$?: Observable<NovitaItem[]>;
+  private novitaCache$?: Observable<NovitaItem[]>; // mi tengo una cache in memoria dell'elenco novita' gia' pronto per evitare chiamate ripetute
 
-  // stesse ultime sei di prima, ma spostate qui
   private ordineUltimeSei: string[] = [
+    // definisco l'ordine fisso con cui voglio tenere in coda le ultime sei novita', le nuove si metteranno per prima in ordine di 'aggiunta'
     'serie.cavalli_contro_circuiti',
     'film.il_mio_gatto_nella_scatola',
     'film.l_era_dell_alchimia',
@@ -42,123 +27,152 @@ export class CaroselloNovitaService {
   constructor(private api: ApiService) {}
 
   /**
-   * Restituisce l'elenco delle novità:
-   * - FILM + SERIE
-   * - filtrati per novita && img_sfondo
-   * - ordinati come prima
-   * - CACHATI in memoria (shareReplay)
-   */
+ * Restituisce un Observable con la lista delle novita' (film e serie) gia' pronta all'uso.
+ *
+ * Usa una cache in memoria per evitare chiamate ripetute; se 'forceRefresh' e' true
+ * ricrea la cache e ricarica i dati dal backend.
+ * Unisce film e serie marcati come novita' (con immagine di sfondo), li riordina
+ * e condivide l'ultimo valore tramite shareReplay.
+ *
+ * @param forceRefresh Se true forza il ricaricamento dei dati ignorando la cache
+ * @returns Observable con l'elenco delle novita' ordinate
+ */
   getNovita(forceRefresh: boolean = false): Observable<NovitaItem[]> {
     if (!this.novitaCache$ || forceRefresh) {
-      const elencoFilm$ = this.api
-        .getElencoFilm()
-        .pipe(map((risp: IRispostaServer) => risp.data as film[]));
+      // ricreo la cache se non esiste ancora oppure se mi viene chiesto un refresh
+      const elencoFilm$ = this.api // preparo lo stream che carica l'elenco dei film
+        .getElencoFilm() // chiedo al backend l'elenco dei film
+        .pipe(map((risp: IRispostaServer) => risp.data as film[])); // estraggo i dati e li tratto come lista di film
 
-      const elencoSerie$ = this.api
-        .getElencoSerie()
-        .pipe(map((risp: IRispostaServer) => risp.data as serie[]));
+      const elencoSerie$ = this.api // preparo lo stream che carica l'elenco delle serie
+        .getElencoSerie() // chiedo al backend l'elenco delle serie
+        .pipe(map((risp: IRispostaServer) => risp.data as serie[])); // estraggo i dati e li tratto come lista di serie
 
       this.novitaCache$ = forkJoin([elencoFilm$, elencoSerie$]).pipe(
+        // eseguo in parallelo le due chiamate e creo un unico stream con entrambi i risultati
         map(([filmList, serieList]) => {
+          // trasformo le due liste in un elenco unico di novita'
           const filmNovita = filmList.filter(
-            (f) => f.novita && f.img_sfondo
+            // filtro i film per tenere solo quelli marcati come novita' e con immagine di sfondo
+            (f) => f.novita && f.img_sfondo // richiedo sia il flag novita' sia la presenza dell'immagine di sfondo
           );
           const serieNovita = serieList.filter(
-            (s) => s.novita && s.img_sfondo
+            // filtro le serie per tenere solo quelle marcate come novita' e con immagine di sfondo
+            (s) => s.novita && s.img_sfondo // richiedo sia il flag novita' sia la presenza dell'immagine di sfondo
           );
 
-          // DOPO
-const elenco: NovitaItem[] = [...filmNovita, ...serieNovita] as NovitaItem[];
+          const elenco: NovitaItem[] = [
+            ...filmNovita,
+            ...serieNovita,
+          ] as NovitaItem[]; // unisco film e serie novita' in un unico elenco tipizzato
 
-
-          return this.ordinaNovita(elenco);
+          return this.ordinaNovita(elenco); // riordino l'elenco con la stessa logica usata prima e lo restituisco
         }),
-        // 🔹 Caching in memoria: la prossima subscribe riceve SUBITO l'ultimo valore
-        shareReplay(1)
+        shareReplay(1) // memorizzo l'ultimo valore in modo che le subscribe successive lo ricevano subito senza rifare le chiamate
       );
     }
 
-    return this.novitaCache$;
+    return this.novitaCache$; // restituisco la cache corrente (gia' pronta oppure appena creata)
   }
 
+
   /**
-   * Stessa logica di ordinaNovita che avevi nel componente.
-   */
+ * Ordina un elenco di novita' secondo la logica del carosello.
+ *
+ * Regola:
+ * - tutte le novita' non presenti nelle 'ultime sei' vengono ordinate per data (piu' recente prima)
+ * - le 'ultime sei' vengono mantenute in coda rispettando l'ordine fisso definito in 'ordineUltimeSei'
+ *
+ * @param elenco Elenco di novita' da ordinare
+ * @returns Elenco ordinato secondo le regole del carosello
+ */
   private ordinaNovita(elenco: NovitaItem[]): NovitaItem[] {
-    const mappaUltimeSei = new Map<string, number>(
-      this.ordineUltimeSei.map((descrizione, indice) => [descrizione, indice])
+    const mappaUltimeSei = new Map<string, number>( // creo una mappa descrizione->posizione per riconoscere e ordinare le ultime sei
+      this.ordineUltimeSei.map((descrizione, indice) => [descrizione, indice]) // trasformo l’array in coppie [chiave,valore]
     );
 
-    const altri: NovitaItem[] = [];
-    const ultimeSei: NovitaItem[] = [];
+    const altri: NovitaItem[] = []; // preparo un array dove metto tutte le novità che NON sono nelle ultime sei
+    const ultimeSei: NovitaItem[] = []; // preparo un array dove metto solo le novità che fanno parte delle ultime
 
-    for (const item of elenco) {
-      if (item.descrizione && mappaUltimeSei.has(item.descrizione)) {
-        ultimeSei.push(item);
-      } else {
-        altri.push(item);
+    for (const item of elenco) { // scorro ogni elemento dell’elenco in ingresso
+      if (item.descrizione && mappaUltimeSei.has(item.descrizione)) { // se l'item ha una descrizione valida ed è tra le ultime
+        ultimeSei.push(item); // lo aggiungo all’array ultimeSei
+      } else { // altrimenti
+        altri.push(item); // lo aggiungo all’array altri
       }
     }
 
-    // 1) gli ALTRI: ordinati per created_at DESC
-    altri.sort((a, b) => {
-      const ta = new Date(a.created_at ?? 0).getTime();
-const tb = new Date(b.created_at ?? 0).getTime();
+    altri.sort((a, b) => { // ordino gli 'altri' in base alla data di creazione (più recente prima)
+      const ta = new Date(a.created_at ?? 0).getTime(); // ricavo il timestamp di a
+      const tb = new Date(b.created_at ?? 0).getTime(); // ricavo il timestamp di b
 
-      return tb - ta;
+      return tb - ta; // faccio l’ordinamento decrescente: b prima di a se b è più recente
     });
 
-    // 2) le ULTIME SEI: nell'ordine fisso
-    ultimeSei.sort((a, b) => {
-      const pa = a.descrizione ? mappaUltimeSei.get(a.descrizione) ?? 0 : 0;
-      const pb = b.descrizione ? mappaUltimeSei.get(b.descrizione) ?? 0 : 0;
-      return pa - pb;
+    ultimeSei.sort((a, b) => { // ordino le 'ultime sei' seguendo l’ordine fisso definito nella mappa
+      const pa = a.descrizione ? mappaUltimeSei.get(a.descrizione) ?? 0 : 0; // prendo la posizione di a nella mappa
+      const pb = b.descrizione ? mappaUltimeSei.get(b.descrizione) ?? 0 : 0; // prendo la posizione di b nella mappa
+      return pa - pb; // ordino in modo crescente per rispettare l’ordine fisso (indice più piccolo prima)
     });
 
-    return [...altri, ...ultimeSei];
+    return [...altri, ...ultimeSei]; // restituisco l’elenco finale: prima gli 'altri' (recenti), poi le 'ultime sei' in coda
   }
 
-// DOPO (cache per lingua)
-private infoNovitaCachePerLingua: Record<string, Observable<Record<string, NovitaInfo>>> = {};
+  private infoNovitaCachePerLingua: Record< // dichiaro una cache che indicizzo per lingua
+    string,
+    Observable<Record<string, NovitaInfo>> // specifico che il valore è un Observable di una mappa descrizione->NovitaInfo
+  > = {};
 
-getInfoNovitaMap(lang: string, forceRefresh: boolean = false): Observable<Record<string, NovitaInfo>> {
-  if (!this.infoNovitaCachePerLingua[lang] || forceRefresh) {
-    this.infoNovitaCachePerLingua[lang] = this.api.getVnovita().pipe(
-      map((risp: IRispostaServer) => {
-        const elenco = risp.data as {
-  descrizione: string;
-  titolo: string;
-  img_titolo: string;
-  sottotitolo: string;
-  trailer: string;
-  lingua: string;
-}[];
+  /**
+ * Restituisce una mappa descrizione->NovitaInfo per la lingua richiesta.
+ *
+ * Usa una cache separata per lingua; se 'forceRefresh' e' true ricrea la cache per quella lingua.
+ * Filtra i record ricevuti dal backend mantenendo solo quelli della lingua richiesta e costruisce
+ * una mappa utilizzando 'descrizione' come chiave.
+ *
+ * @param lang Codice lingua richiesto
+ * @param forceRefresh Se true forza il ricaricamento ignorando la cache per quella lingua
+ * @returns Observable con la mappa descrizione->NovitaInfo per la lingua richiesta
+ */
+  getInfoNovitaMap(
+    lang: string, // ricevo la lingua richiesta
+    forceRefresh: boolean = false // permetto di forzare il refresh della cache (di default no)
+  ): Observable<Record<string, NovitaInfo>> { // dichiaro che ritorno un Observable di mappa descrizione->NovitaInfo
+    if (!this.infoNovitaCachePerLingua[lang] || forceRefresh) { // se non ho ancora la cache per quella lingua oppure mi chiedono refresh
+      this.infoNovitaCachePerLingua[lang] = this.api.getVnovita().pipe( // salvo in cache lo stream che recupera le novità dal backend
+        map((risp: IRispostaServer) => { // trasformo la risposta del server in una struttura più comoda
+          const elenco = risp.data as { // estraggo i dati e li tratto come array di record con i campi attesi
+            descrizione: string;
+            titolo: string;
+            img_titolo: string;
+            sottotitolo: string;
+            trailer: string;
+            lingua: string;
+          }[];
 
+          const mappa: Record<string, NovitaInfo> = {}; // preparo una mappa vuota che riempirò con descrizione->info
 
-        const mappa: Record<string, NovitaInfo> = {};
+          for (const item of elenco) { // scorro ogni riga ricevuta dal backend
+            if (item.lingua !== lang) continue; // salto subito gli elementi che non sono della lingua richiesta
+            if (!item.descrizione) continue; // salto gli elementi senza descrizione perché non posso usarli come chiave
 
-        for (const item of elenco) {
-  if (item.lingua !== lang) continue;
-  if (!item.descrizione) continue;
+            if (!mappa[item.descrizione]) { // se non ho ancora inserito info per questa descrizione
+              mappa[item.descrizione] = { // creo l’oggetto NovitaInfo per questa descrizione
+                titolo: item.titolo || '', // salvo il titolo (o stringa vuota se manca)
+                img_titolo: item.img_titolo || '', // salvo l'immagine del titolo
+                sottotitolo: item.sottotitolo || '', // salvo il sottotitolo
+                trailer: item.trailer || '', // salvo il trailer
+              };
+            }
+          }
 
-  if (!mappa[item.descrizione]) {
-    mappa[item.descrizione] = {
-      titolo: item.titolo || '',
-      img_titolo: item.img_titolo || '',
-      sottotitolo: item.sottotitolo || '',
-      trailer: item.trailer || '',
-    };
+          return mappa;
+        }),
+        shareReplay(1) // memorizzo l'ultimo valore così le subscribe successive non rifanno la chiamata
+      );
+    }
+
+    return this.infoNovitaCachePerLingua[lang]; // restituisco l’observable in cache per la lingua richiesta
   }
-}
-
-
-        return mappa;
-      }),
-      shareReplay(1)
-    );
-  }
-
-  return this.infoNovitaCachePerLingua[lang];
-}
 
 }

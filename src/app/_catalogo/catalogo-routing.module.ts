@@ -1,8 +1,9 @@
+// Modulo di routing che definisce le rotte del feature Catalogo e collega i path ai rispettivi componenti.
+
 import { NgModule } from '@angular/core';
 import { RouterModule, Routes } from '@angular/router';
 import { CatalogoComponent } from './catalogo/catalogo.component';
-import { FilmComponent } from './film/film.component';
-import { SerieComponent } from './serie/serie.component';
+
 
 const routes: Routes = [
   {
@@ -11,12 +12,18 @@ const routes: Routes = [
   },
   {
     path: 'film',
-    component: FilmComponent,
+    component: CatalogoComponent,
   },
   {
+
     path: 'serie',
-    component: SerieComponent,
+    component: CatalogoComponent,
   },
+
+    {
+    path: 'film-serie',
+    component: CatalogoComponent,
+   },
 ];
 
 @NgModule({

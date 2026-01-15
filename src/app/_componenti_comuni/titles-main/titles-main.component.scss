@@ -1,6 +1,3 @@
-//stile titoli principale
-
-
 
   .title-container {
     position: fixed;
@@ -27,11 +24,11 @@
   }
 
    &.titolo-alto {
-    pointer-events: auto;          /* torna cliccabile */
+    pointer-events: auto;
   }
 
   &.titolo-alto .main-title {
-    cursor: pointer;               /* mano sul titolo */
+    cursor: pointer;
   }
 
 }
@@ -257,7 +254,6 @@ h3 {
   @media (max-width: 480px) {
     font-size: 4.5vw;
   }
-//schermo significatamente più largo che alto, dispositivo orizontale
   @media (orientation: landscape) and (max-width: 1524px) and (min-height: 500px){
     padding-top: 0px;
     margin-top: -50px;
@@ -281,7 +277,6 @@ h3 {
 
 
 
-//per risolvere un bug su firefox su alcuni dispostivi ho tolto le ombre
 @supports (-moz-appearance: none) {
   @media (max-width: 800px) {
 
@@ -314,12 +309,12 @@ h3 {
 }
 
 .title-link {
-  display: flex;              // oppure: display: block;
+  display: flex;
   justify-content: center;
   align-items: center;
 
   width: 100%;
-  max-width: 60%;             // spostato qui (prima stava su .main-title)
+  max-width: 60%;
 
   text-decoration: none;
   color: inherit;

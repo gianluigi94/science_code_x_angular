@@ -1,8 +1,7 @@
 import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule } from '@angular/forms';
-import { TranslateModule } from '@ngx-translate/core'; // 👈 aggiungi questo
-
+import { TranslateModule } from '@ngx-translate/core';
 import { BenvenutoRoutingModule } from './benvenuto-routing.module';
 import { WelcomeComponent } from './welcome/welcome.component';
 import { LoginComponent } from './login/login.component';
@@ -16,8 +15,8 @@ import { SaturnoModule } from '../_componenti_comuni/saturno/saturno.module';
   imports: [
     CommonModule,
     BenvenutoRoutingModule,
-    ComponentiComuniModule,
-    SaturnoModule,
+    ComponentiComuniModule, //utilizzo dei componenti comuni
+    SaturnoModule, //utilizzo di saturno
     ReactiveFormsModule,
     TranslateModule,
   ],

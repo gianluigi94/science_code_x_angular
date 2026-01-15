@@ -39,7 +39,6 @@
   }
 }
 
-/* player Video.js sovrapposto (stile progetto grande, semplificato) */
 video-js {
   position: absolute;
   top: 0;
@@ -55,12 +54,9 @@ video-js {
     pointer-events: none;
   }
 
-  // &.sovrapposto {
-  //   position: absolute;
-  // }
+
 }
 
-/* nascondo i controlli di Video.js e adatto il video a cover */
 :host ::ng-deep .senza-controlli {
   .vjs-control-bar,
   .vjs-big-play-button,
@@ -76,7 +72,6 @@ video-js {
 }
 
 
-/* comandi (frecce + pallini) */
 .comandi-carosello {
   position: absolute;
   top: 52%;
@@ -255,7 +250,6 @@ video-js {
         text-shadow: none;
         transition: transform 0.3s ease;
 
-        /* look “carosello” simile al vecchio */
         background: rgba(59, 59, 59, 0.34);
         border: 1px solid #ec820a;
         color: #ec820a !important;
@@ -266,7 +260,7 @@ video-js {
       }
 :host ::ng-deep #video-carosello-novita.video-js {
   position: absolute;
-  inset: 0;           // top/left/right/bottom = 0
+  inset: 0;
   width: 100% !important;
   height: 100% !important;
 }

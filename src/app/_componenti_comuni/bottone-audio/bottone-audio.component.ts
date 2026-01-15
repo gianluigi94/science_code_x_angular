@@ -8,14 +8,12 @@ import { AudioGlobaleService } from './../../_servizi_globali/audio-globale.serv
   styleUrls: ['./bottone-audio.component.scss'],
 })
 export class BottoneAudioComponent implements OnInit, OnDestroy {
-  // true = audio consentito (icona senza sbarra), false = audio bloccato (con sbarra)
   attivo = false;
   sottoscrizioneStato: Subscription | null = null;
 
   constructor(public audioGlobale: AudioGlobaleService) {}
 
   ngOnInit(): void {
-    // sincronizza lo stato visivo con lo stato globale / localStorage
     this.sottoscrizioneStato = this.audioGlobale.statoAudio$.subscribe(val => {
       this.attivo = val;
     });
@@ -29,7 +27,6 @@ export class BottoneAudioComponent implements OnInit, OnDestroy {
   }
 
   alClic(): void {
-    // cambia lo stato globale → aggiorna TUTTI i bottoni e salva su localStorage
     this.audioGlobale.toggle();
   }
 }
