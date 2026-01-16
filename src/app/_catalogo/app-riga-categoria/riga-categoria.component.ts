@@ -14,12 +14,12 @@ export class RigaCategoriaComponent implements OnChanges {
   numeroMassimoPagine = 0;
   trasformazioneWrapper = '';
 
-
-   ritardoHoverMs = 380;
-   ritardoUscitaHoverMs = 320;
-   timerEntrata: any = null;
-   timerUscita: any = null;
-
+ritardoUscitaHoverMs = 160;
+     ritardoHoverMs = 380;
+  timerEntrata: any = null;
+  timerUscita: any = null;
+  hoverConfermato = false;
+  slugHoverInAttesa = '';
    constructor(public servizioHoverLocandina: HoverLocandinaService) {}
 
   ngOnChanges(_changes: SimpleChanges): void {
@@ -52,21 +52,33 @@ export class RigaCategoriaComponent implements OnChanges {
   }
 
 
-   onMouseEnterLocandina(): void {
-     if (this.timerUscita) clearTimeout(this.timerUscita);
+   onMouseEnterLocandina(src: string): void {
      if (this.timerEntrata) clearTimeout(this.timerEntrata);
-
+     if (this.timerUscita) clearTimeout(this.timerUscita);
+this.slugHoverInAttesa = this.slugDaSrc(src);
      this.timerEntrata = setTimeout(() => {
-       this.servizioHoverLocandina.emettiEntrata();
+      this.hoverConfermato = true;
+       this.servizioHoverLocandina.emettiEntrata(this.slugHoverInAttesa);
      }, this.ritardoHoverMs);
    }
 
    onMouseLeaveLocandina(): void {
      if (this.timerEntrata) clearTimeout(this.timerEntrata);
-     if (this.timerUscita) clearTimeout(this.timerUscita);
+             if (this.timerUscita) clearTimeout(this.timerUscita);
 
-     this.timerUscita = setTimeout(() => {
-       this.servizioHoverLocandina.emettiUscita();
-     }, this.ritardoUscitaHoverMs);
+    this.timerUscita = setTimeout(() => {
+      if (!this.hoverConfermato) return;
+      this.hoverConfermato = false;
+      this.servizioHoverLocandina.emettiUscita();
+    }, this.ritardoUscitaHoverMs);
    }
+
+     private slugDaSrc(src: string): string {
+    const nome = String(src || '').split('/').pop() || '';
+        return nome
+      .replace(/^carosello_/, '')
+      .replace(/^locandina_it_/, '')
+      .replace(/^locandina_en_/, '')
+      .replace(/\.webp$/i, '');
+  }
 }

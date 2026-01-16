@@ -134,10 +134,11 @@ export class CaroselloNovitaComponent implements OnInit, OnDestroy, AfterViewIni
 
 
      this.subs.add(
-       this.servizioHoverLocandina.osserva().subscribe((attivo) => {
-         this.mostraImmagineHover = attivo;
+             this.servizioHoverLocandina.osserva().subscribe((slug) => {
+        this.mostraImmagineHover = !!slug;
+        if (slug) this.immagineHoverFissa = this.urlLocandinaDaSlug(slug);
 
-         if (attivo) {
+        if (slug) {
                    this.pausaPerHover = true;
 
           this.fermaAvvioPendete();   // blocco avvii trailer pendenti
@@ -743,5 +744,9 @@ export class CaroselloNovitaComponent implements OnInit, OnDestroy, AfterViewIni
  */
   private riprovaTrailerCorrente(token: number): void {
     CaroselloVideoUtility.riprovaTrailerCorrente(this, token); // delego la logica di retry trailer alla utility passando il componente come contesto
+  }
+
+    private urlLocandinaDaSlug(slug: string): string {
+    return `assets/carosello_locandine/carosello_${slug}.webp`;
   }
 }

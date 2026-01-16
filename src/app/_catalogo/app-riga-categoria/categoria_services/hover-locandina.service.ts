@@ -1,19 +1,20 @@
-import { Injectable } from '@angular/core';
-import { BehaviorSubject, Observable } from 'rxjs';
+ import { Injectable } from '@angular/core';
+ import { BehaviorSubject, Observable } from 'rxjs';
+import { distinctUntilChanged } from 'rxjs/operators';
 
-@Injectable({ providedIn: 'root' })
-export class HoverLocandinaService {
-  hoverAttivo$ = new BehaviorSubject<boolean>(false);
+ @Injectable({ providedIn: 'root' })
+ export class HoverLocandinaService {
+  hoverSlug$ = new BehaviorSubject<string | null>(null);
 
-  osserva(): Observable<boolean> {
-    return this.hoverAttivo$.asObservable();
-  }
+  osserva(): Observable<string | null> {
+    return this.hoverSlug$.asObservable().pipe(distinctUntilChanged());
+   }
 
-  emettiEntrata(): void {
-    this.hoverAttivo$.next(true);
-  }
+  emettiEntrata(slug: string): void {
+    this.hoverSlug$.next(slug || null);
+   }
 
-  emettiUscita(): void {
-    this.hoverAttivo$.next(false);
-  }
-}
+   emettiUscita(): void {
+    this.hoverSlug$.next(null);
+   }
+ }
