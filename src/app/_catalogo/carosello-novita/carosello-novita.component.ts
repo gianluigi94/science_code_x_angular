@@ -164,7 +164,8 @@ export class CaroselloNovitaComponent implements OnInit, OnDestroy, AfterViewIni
             if (tokenHover !== this.idHover || !this.hoverAttivo) return;
             try { this.player.pause(); } catch {}
             try { this.player.currentTime(0); } catch {}
-            this.avviaTrailerHoverFisso(this.URL_TRAILER_HOVER_FISSO, tokenHover);
+                  const urlTrailer = this.urlTrailerHoverDaSlug(slug);
+      this.avviaTrailerHoverFisso(urlTrailer, tokenHover);
           });
           return;
         }
@@ -908,4 +909,15 @@ export class CaroselloNovitaComponent implements OnInit, OnDestroy, AfterViewIni
     img.src = url;
   }
 
+
+    private linguaTrailerHover(): 'it' | 'en' {
+    const lingua = (this.translate?.currentLang || 'it').toLowerCase();
+    return lingua.startsWith('en') ? 'en' : 'it';
+  }
+
+  private urlTrailerHoverDaSlug(slug: string): string {
+    const lang = this.linguaTrailerHover();
+      const prefisso = lang === 'it' ? 'ita' : 'en';
+  return `https://d2kd3i5q9rl184.cloudfront.net/mp4-trailer-${lang}/trailer_${prefisso}_${slug}.mp4`;
+  }
 }
