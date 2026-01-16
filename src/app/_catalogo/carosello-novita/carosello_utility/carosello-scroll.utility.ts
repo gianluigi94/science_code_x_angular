@@ -43,7 +43,7 @@ export class CaroselloScrollUtility {
           // Se non sono al top (o sono in pausa scroll), non devo riprodurre video
           ctx.mostraVideo = false; // Nascondo il video
 
-          ctx.avviaAutoscroll(); // Se non sono al top, faccio ripartire da zero l'autoscroll
+          if (!ctx.pausaPerHover) ctx.avviaAutoscroll(); // Se non sono al top, faccio ripartire da zero l'autoscroll
         }
       };
 
@@ -107,7 +107,7 @@ export class CaroselloScrollUtility {
         } else {
           // Se non sono al top (o sono in pausa scroll), non devo riprodurre video
           ctx.mostraVideo = false; // Nascondo il video
-          ctx.avviaAutoscroll(); // Faccio ripartire l'autoscroll da zero quando non sono al top
+          if (!ctx.pausaPerHover) ctx.avviaAutoscroll(); // Faccio ripartire l'autoscroll da zero quando non sono al top
         }
       };
 
@@ -174,7 +174,7 @@ export class CaroselloScrollUtility {
         } else {
           // Se non sono al top (o sono in pausa scroll), niente video
           ctx.mostraVideo = false; // Nascondo il video
-          ctx.avviaAutoscroll(); // Riparto da zero con l'autoscroll quando non sono al top
+          if (!ctx.pausaPerHover) ctx.avviaAutoscroll(); // Riparto da zero con l'autoscroll quando non sono al top
         }
       }, ctx.durataTransizioneMs); // Sincronizzo con la durata della transizione
     });
