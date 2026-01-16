@@ -17,7 +17,6 @@ export class RigaCategoriaComponent implements OnChanges {
 ritardoUscitaHoverMs = 160;
      ritardoHoverMs = 380;
   timerEntrata: any = null;
-  timerUscita: any = null;
   hoverConfermato = false;
   slugHoverInAttesa = '';
    constructor(public servizioHoverLocandina: HoverLocandinaService) {}
@@ -54,7 +53,7 @@ ritardoUscitaHoverMs = 160;
 
    onMouseEnterLocandina(src: string): void {
      if (this.timerEntrata) clearTimeout(this.timerEntrata);
-     if (this.timerUscita) clearTimeout(this.timerUscita);
+     this.servizioHoverLocandina.annullaUscita();
 this.slugHoverInAttesa = this.slugDaSrc(src);
      this.timerEntrata = setTimeout(() => {
       this.hoverConfermato = true;
@@ -64,13 +63,14 @@ this.slugHoverInAttesa = this.slugDaSrc(src);
 
    onMouseLeaveLocandina(): void {
      if (this.timerEntrata) clearTimeout(this.timerEntrata);
-             if (this.timerUscita) clearTimeout(this.timerUscita);
+               if (!this.hoverConfermato) {
+      // non ho confermato il nuovo hover: se sto davvero uscendo da tutte, chiudo dopo il delay
+      this.servizioHoverLocandina.pianificaUscita(this.ritardoUscitaHoverMs);
+      return;
+    }
 
-    this.timerUscita = setTimeout(() => {
-      if (!this.hoverConfermato) return;
-      this.hoverConfermato = false;
-      this.servizioHoverLocandina.emettiUscita();
-    }, this.ritardoUscitaHoverMs);
+    this.hoverConfermato = false;
+    this.servizioHoverLocandina.pianificaUscita(this.ritardoUscitaHoverMs);
    }
 
      private slugDaSrc(src: string): string {

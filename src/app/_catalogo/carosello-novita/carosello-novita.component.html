@@ -65,13 +65,13 @@
     </div>
   </div>
 
-    <div
-   class="overlay-hover"
-   [class.visibile]="mostraImmagineHover"
-   aria-hidden="true"
- >
-   <img [src]="immagineHoverFissa" alt="" />
- </div>
+      <div
+    class="overlay-hover"
+    [class.visibile]="mostraCoperturaHover"
+    aria-hidden="true"
+  >
+    <img [attr.src]="immagineHoverFissa || null" alt="" />
+  </div>
 
   <!-- comanidi del carosello che cambiano stile se non sono in cima -->
   <div class="comandi-carosello" [class.rimpiciolito_salito_destra]="!alTop">

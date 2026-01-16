@@ -26,9 +26,14 @@ import { HoverLocandinaService } from '../app-riga-categoria/categoria_services/
   styleUrls: ['./carosello-novita.component.scss'],
 })
 export class CaroselloNovitaComponent implements OnInit, OnDestroy, AfterViewInit {
-
+  durataUscitaCoperturaHoverMs = 220;
   pausaPerHover = false;
-     mostraImmagineHover = false;
+       hoverAttivo = false;
+  mostraCoperturaHover = false;
+  istanteInizioCoperturaHover = 0;
+  timerMinimoCoperturaHover: any = null;
+  durataMinimaCoperturaHoverMs = 700;
+  idHover = 0;
    immagineHoverFissa = 'assets/carosello_locandine/carosello_abbraccia_il_vento.webp';
   alTop = true; // Tengo traccia se sono 'in cima' alla pagina (stato iniziale: sì)
   pausaPerScroll = false; // Segno se devo mettere in pausa per via dello scroll (inizialmente no)
@@ -112,6 +117,10 @@ export class CaroselloNovitaComponent implements OnInit, OnDestroy, AfterViewIni
   private idCambioLinguaVideo = 0; // Uso un token incrementale per distinguere i cambi lingua video
   private promessaStopCambioLingua: Promise<void> | null = null; // Mi salvo la promise dello stop/fade legata al cambio lingua
 
+    URL_TRAILER_HOVER_FISSO =
+    'https://d2kd3i5q9rl184.cloudfront.net/mp4-trailer-it/trailer_ita_piu_piccolo_di_un_atomo.mp4';
+
+
   constructor(
     private caroselloNovitaService: CaroselloNovitaService,
     private cambioLinguaService: CambioLinguaService,
@@ -135,31 +144,57 @@ export class CaroselloNovitaComponent implements OnInit, OnDestroy, AfterViewIni
 
      this.subs.add(
              this.servizioHoverLocandina.osserva().subscribe((slug) => {
-        this.mostraImmagineHover = !!slug;
-        if (slug) this.immagineHoverFissa = this.urlLocandinaDaSlug(slug);
+                if (slug) {
+          const tokenHover = ++this.idHover;
+          this.hoverAttivo = true;
+          this.pausaPerHover = true;
 
-        if (slug) {
-                   this.pausaPerHover = true;
           if (!this.alTop) this.fermaAutoscroll();
-          this.fermaAvvioPendete();   // blocco avvii trailer pendenti
-          this.numeroSequenzaAvvio++; // invalido eventuali avvii in corso
+          this.fermaAvvioPendete();
+          this.numeroSequenzaAvvio++;
 
-          this.mostraVideo = false; // nascondo subito il video sotto overlay
+                   // evito "flash" della vecchia immagine: aggiorno src solo quando la nuova e' pronta
+          this.mostraCoperturaHover = false;
+          const urlHover = this.urlLocandinaDaSlug(slug);
+          this.precaricaImmagineHover(urlHover, tokenHover);
+
+          this.mostraVideo = false;
 
           this.sfumaGuadagnoVerso(0, this.durataFadeAudioMs).finally(() => {
+            if (tokenHover !== this.idHover || !this.hoverAttivo) return;
             try { this.player.pause(); } catch {}
             try { this.player.currentTime(0); } catch {}
+            this.avviaTrailerHoverFisso(this.URL_TRAILER_HOVER_FISSO, tokenHover);
           });
-         } else {
-                     this.pausaPerHover = false;
+          return;
+        }
 
-          // tolgo overlay e riparto con la logica normale (solo se posso)
-              if (this.alTop && !this.pausaPerScroll && !this.pausaPerBlur) {
-      this.avviaTrailerCorrenteDopo(this.RITARDO_MOSTRA_PLAYER_MS);
-    } else if (!this.alTop) {
-      this.avviaAutoscroll(); // riparte resettato
-    }
-         }
+        // uscita hover
+      const tokenUscita = ++this.idHover;
+ this.hoverAttivo = false;
+ this.pausaPerHover = false;
+ this.mostraCoperturaHover = false;
+ this.immagineHoverFissa = '';
+ this.azzeraTimerCoperturaHover();
+
+ this.fermaAvvioPendete();
+ this.numeroSequenzaAvvio++;
+ this.mostraVideo = false;
+
+ this.sfumaGuadagnoVerso(0, this.durataFadeAudioMs)
+   .finally(() => {
+     try { this.player.pause(); } catch {}
+     try { this.player.currentTime(0); } catch {}
+   })
+   .finally(() => {
+     if (tokenUscita !== this.idHover) return;
+
+     if (this.alTop && !this.pausaPerScroll && !this.pausaPerBlur) {
+       this.avviaTrailerCorrenteDopo(this.RITARDO_MOSTRA_PLAYER_MS);
+     } else if (!this.alTop) {
+       this.avviaAutoscroll();
+     }
+     });
        })
      );
 
@@ -751,4 +786,126 @@ export class CaroselloNovitaComponent implements OnInit, OnDestroy, AfterViewIni
     private urlLocandinaDaSlug(slug: string): string {
     return `assets/carosello_locandine/carosello_${slug}.webp`;
   }
+
+
+    azzeraTimerCoperturaHover(): void {
+    if (this.timerMinimoCoperturaHover) {
+      clearTimeout(this.timerMinimoCoperturaHover);
+      this.timerMinimoCoperturaHover = null;
+    }
+  }
+
+  nascondiCoperturaHoverSeConsentito(tokenHover: number): void {
+      const eseguiUscita = () => {
+    if (tokenHover !== this.idHover) return;
+
+    this.mostraCoperturaHover = false;
+  };
+    const trascorsi = Date.now() - this.istanteInizioCoperturaHover;
+    if (trascorsi >= this.durataMinimaCoperturaHoverMs) {
+         eseguiUscita();
+    return;
+    }
+    const residuo = this.durataMinimaCoperturaHoverMs - trascorsi;
+    this.azzeraTimerCoperturaHover();
+    this.timerMinimoCoperturaHover = setTimeout(() => {
+      this.timerMinimoCoperturaHover = null;
+      eseguiUscita();
+    }, Math.max(0, residuo));
+  }
+
+  avviaTrailerHoverFisso(urlTrailer: string, tokenHover: number): void {
+    if (!this.player) return;
+    if (!urlTrailer) return;
+    if (tokenHover !== this.idHover || !this.hoverAttivo) return;
+
+    try { this.player.off('canplay'); } catch {}
+    try { this.player.off('playing'); } catch {}
+    try { this.player.off('ended'); } catch {}
+
+    this.mostraVideo = false;
+    this.sfumaGuadagnoVerso(0, 0);
+
+    try { this.player.pause(); } catch {}
+    try { this.player.currentTime(0); } catch {}
+
+    try {
+      this.player.src({ src: urlTrailer, type: 'video/mp4' });
+      try { this.player.load?.(); } catch {}
+      this.applicaAttributiVideoReale();
+    } catch {
+      return;
+    }
+
+    this.attendiEventoPlayer('loadedmetadata', 4000).then(() => {
+      if (tokenHover !== this.idHover || !this.hoverAttivo) return;
+      try { this.player.currentTime(0.01); } catch {}
+
+      this.attendiEventoPlayer('canplay', 6000).then(() => {
+        if (tokenHover !== this.idHover || !this.hoverAttivo) return;
+
+
+        this.inizializzaWebAudioSuVideoReale();
+        try {
+          if (this.nodoGuadagno && this.contestoAudio) {
+            const t0 = this.contestoAudio.currentTime;
+            this.nodoGuadagno.gain.cancelScheduledValues(t0);
+            this.nodoGuadagno.gain.setValueAtTime(0, t0);
+          }
+        } catch {}
+
+        this.player.one('playing', () => {
+          if (tokenHover !== this.idHover || !this.hoverAttivo) return;
+          this.mostraVideo = true;
+          this.audioConsentito = true;
+          try {
+            if (this.contestoAudio && this.contestoAudio.state === 'suspended') {
+              this.contestoAudio.resume().catch(() => {});
+            }
+          } catch {}
+          this.sfumaGuadagnoVerso(1, this.durataFadeAudioMs);
+          this.nascondiCoperturaHoverSeConsentito(tokenHover);
+        });
+
+        try {
+          this.impostaMuteReale(false);
+          const p = this.player.play();
+          if (p && typeof p.then === 'function') {
+            p.catch(() => {
+              this.impostaMuteReale(true);
+              try { this.player.play(); } catch {}
+            });
+          }
+        } catch {
+          try {
+            this.impostaMuteReale(true);
+            this.player.play();
+          } catch {}
+        }
+      });
+    });
+  }
+
+
+    precaricaImmagineHover(url: string, tokenHover: number): void {
+    if (!url) return;
+    const img = new Image();
+    img.onload = () => {
+      if (tokenHover !== this.idHover || !this.hoverAttivo) return;
+      this.immagineHoverFissa = url;
+      this.mostraCoperturaHover = true;
+      this.istanteInizioCoperturaHover = Date.now();
+      this.azzeraTimerCoperturaHover();
+    };
+    img.onerror = () => {
+      // se fallisce, almeno non faccio vedere la vecchia "sbagliata"
+      if (tokenHover !== this.idHover || !this.hoverAttivo) return;
+      this.immagineHoverFissa = url;
+      this.mostraCoperturaHover = true;
+      this.istanteInizioCoperturaHover = Date.now();
+      this.azzeraTimerCoperturaHover();
+    };
+    img.src = url;
+  }
+
 }

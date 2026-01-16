@@ -17,6 +17,14 @@ export class CaroselloTopUtility {
 
     ctx.pausaPerScroll = true; // Segno che ora sono in pausa per scroll (non devo avviare video)
 
+      // se sono in hover, NON tocco il player (non devo "sparire" come uscita hover)
+  if (ctx.hoverAttivo || ctx.pausaPerHover) {
+    ctx.fermaAvvioPendete();   // cancello solo avvii trailer "normali"
+    ctx.numeroSequenzaAvvio++; // invalido avvii normali
+    try { ctx.fermaAutoscroll(); } catch {}
+    return;
+  }
+
     ctx.fermaAvvioPendete(); // Annullo eventuali avvii pendenti del trailer
     ctx.numeroSequenzaAvvio++; // Invalido eventuali avvii in corso incrementando la sequenza
 
@@ -50,6 +58,12 @@ export class CaroselloTopUtility {
     if (!ctx.player || !ctx.pausaPerScroll) return; // Esco se il player non c'e' o se non ero in pausa per scroll
 
     ctx.pausaPerScroll = false; // Tolgo lo stato di pausa per scroll (posso tornare a riprodurre video)
+
+      // se sono in hover, NON avvio trailer normale (resto in hover)
+  if (ctx.hoverAttivo || ctx.pausaPerHover) {
+    try { ctx.fermaAutoscroll(); } catch {}
+    return;
+  }
 
     ctx.fermaAutoscroll(); // Stoppo e resetto il timer di autoscroll
 
