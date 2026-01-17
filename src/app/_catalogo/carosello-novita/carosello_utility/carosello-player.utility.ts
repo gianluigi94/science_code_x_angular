@@ -74,6 +74,8 @@ export class CaroselloPlayerUtility {
       playsinline: true,
     });
 
+    try { ctx.collegaAggiornamentoBarra(); } catch {}
+
     try {
       ctx.player.autoplay && ctx.player.autoplay(false);
     } catch {} // Forzo autoplay false

@@ -74,7 +74,11 @@
   </div>
 
   <!-- comanidi del carosello che cambiano stile se non sono in cima -->
-  <div class="comandi-carosello" [class.rimpiciolito_salito_destra]="!alTop">
+   <div
+   class="comandi-carosello"
+   [class.rimpiciolito_salito_destra]="!alTop"
+   [class.nascosto-comandi]="!mostraComandi"
+ >
     <div class="riga-alta">
       <!-- i bottoni hanno aria e title dinamici con la locandina e la lingua  -->
 <!-- bottoni indietro  -->
@@ -142,6 +146,22 @@
   <!-- sfumatura css -->
   <span class="sfumatura"></span>
 
+    <div
+    class="barra-avanzamento"
+    *ngIf="mostraVideo || hoverAttivo"
+    role="slider"
+    [attr.aria-valuemin]="0"
+    [attr.aria-valuemax]="durataTotaleMs"
+    [attr.aria-valuenow]="posizioneCorrenteMs"
+    [attr.aria-label]="'ui.carosello.barra_avanzamento_aria' | translate"
+    (click)="saltaAConClick($event)"
+  >
+    <div class="riempimento-buffer" [style.width.%]="percentualeBuffer"></div>
+    <div class="riempimento-progresso" [style.width.%]="percentualeAvanzamento"></div>
+    <span class="tempo-corrente" aria-hidden="true">{{ tempoCorrenteTesto }}</span>
+    <span class="tempo-totale" aria-hidden="true">{{ durataTotaleTesto }}</span>
+  </div>
+
   <!-- tag esclusivo per il player video con video-js -->
   <video-js
     #riproduttore
@@ -170,16 +190,16 @@
     </div>
 <!-- sottotitolo che cambia con il cambio della slide e della lingua, entra con animazione  -->
     <p class="sottotitolo" [class.nascosto]="!sottotitoloVisibile">
-      {{ sottotitoloOverlay }}
-      <!-- span play con title dinamico alla lingua -->
-      <span
-        class="play"
-        [attr.title]="
-          'ui.carosello.slide_tooltip.title'
-            | translate : { titolo: titoloOverlay || '' }
-        "
-        >&#9658;</span
-      >
-    </p>
+  {{ sottotitoloOverlay }}
+ <span
+  *ngIf="mostraIconaPlay"
+  class="play"
+  [attr.title]="
+    'ui.carosello.slide_tooltip.title'
+      | translate : { titolo: titoloOverlay || '' }
+  "
+  >&#9658;</span
+>
+</p>
   </div>
 </div>

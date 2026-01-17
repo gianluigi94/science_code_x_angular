@@ -101,5 +101,6 @@ export class CaroselloTopUtility {
       // Se sono tornato in cima..
       CaroselloTopUtility.onRitornoAlTop(ctx); // Applico la logica di ritorno al top
     }
+    try { ctx.aggiornaIconaPlayDaStato?.(); } catch {}
   }
 }

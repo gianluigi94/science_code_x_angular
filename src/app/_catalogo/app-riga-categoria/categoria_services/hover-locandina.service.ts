@@ -4,11 +4,13 @@ import { distinctUntilChanged } from 'rxjs/operators';
 
  @Injectable({ providedIn: 'root' })
  export class HoverLocandinaService {
-  hoverSlug$ = new BehaviorSubject<string | null>(null);
+  hoverLocandina$ = new BehaviorSubject<{ slug: string; sottotitolo: string } | null>(null);
   timerUscita: any = null;
 
-  osserva(): Observable<string | null> {
-    return this.hoverSlug$.asObservable().pipe(distinctUntilChanged());
+  osserva(): Observable<{ slug: string; sottotitolo: string } | null> {
+        return this.hoverLocandina$.asObservable().pipe(
+      distinctUntilChanged((a, b) => (a?.slug || '') === (b?.slug || '') && (a?.sottotitolo || '') === (b?.sottotitolo || ''))
+    );
    }
 
      annullaUscita(): void {
@@ -22,17 +24,17 @@ import { distinctUntilChanged } from 'rxjs/operators';
     this.annullaUscita();
     this.timerUscita = setTimeout(() => {
       this.timerUscita = null;
-      this.hoverSlug$.next(null);
+      this.hoverLocandina$.next(null);
     }, Math.max(0, ritardoMs || 0));
   }
 
-  emettiEntrata(slug: string): void {
+  emettiEntrata(slug: string, sottotitolo: string): void {
     this.annullaUscita();
-    this.hoverSlug$.next(slug || null);
+    this.hoverLocandina$.next(slug ? { slug, sottotitolo: sottotitolo || '' } : null);
    }
 
    emettiUscita(): void {
           this.annullaUscita();
-    this.hoverSlug$.next(null);
+    this.hoverLocandina$.next(null);
    }
  }

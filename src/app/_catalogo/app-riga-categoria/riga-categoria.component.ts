@@ -6,7 +6,7 @@ import { HoverLocandinaService } from './categoria_services/hover-locandina.serv
   styleUrls: ['./riga-categoria.component.scss'],
 })
 export class RigaCategoriaComponent implements OnChanges {
-  @Input() locandine: string[] = [];
+  @Input() locandine: { src: string; sottotitolo: string }[] = [];
   @Input() categoria = '';
 
   locandineVisibili = 5;
@@ -51,13 +51,13 @@ ritardoUscitaHoverMs = 160;
   }
 
 
-   onMouseEnterLocandina(src: string): void {
+   onMouseEnterLocandina(p: { src: string; sottotitolo: string }): void {
      if (this.timerEntrata) clearTimeout(this.timerEntrata);
      this.servizioHoverLocandina.annullaUscita();
-this.slugHoverInAttesa = this.slugDaSrc(src);
+this.slugHoverInAttesa = this.slugDaSrc(p.src);
      this.timerEntrata = setTimeout(() => {
       this.hoverConfermato = true;
-       this.servizioHoverLocandina.emettiEntrata(this.slugHoverInAttesa);
+       this.servizioHoverLocandina.emettiEntrata(this.slugHoverInAttesa, p.sottotitolo || '');
      }, this.ritardoHoverMs);
    }
 

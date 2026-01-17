@@ -251,7 +251,7 @@ const saturnoTrigger = ScrollTrigger.create({
     } else if (window.innerWidth <= 1200) {
       leftValue = 15;
     } else if (window.innerWidth <= 1500) {
-      leftValue = 10;
+      leftValue = 30;
     } else {
       // leftValue = 6;
       leftValue = 25;
@@ -275,10 +275,10 @@ const saturnoTrigger = ScrollTrigger.create({
     } else if (window.innerWidth <= 900) {
       topValue = 8;
     } else if (window.innerWidth <= 1000) {
-      topValue = 8;
+      topValue = 7;
     } else {
       // topValue = 3;
-      topValue = 11;
+      topValue = 10;
     }
 
     const softOffset = ((1 - scaleValue) * 100) / 2;

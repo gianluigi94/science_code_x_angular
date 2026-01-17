@@ -124,7 +124,7 @@ export class SaturnoService {
     {
       innerRadius: 1.34,
       outerRadius: 1.35,
-      particleCount: 240,
+      particleCount: 170,
       color: 0xcfcfcf,
       size: 0.115,
       rotationSpeed: 0.00315,
@@ -132,7 +132,7 @@ export class SaturnoService {
     {
       innerRadius: 1.54,
       outerRadius: 1.65,
-      particleCount: 276,
+      particleCount: 240,
       color: 0x9f8873,
       size: 0.1,
       rotationSpeed: 0.0019,
@@ -140,7 +140,7 @@ export class SaturnoService {
     {
       innerRadius: 1.8,
       outerRadius: 1.82,
-      particleCount: 260,
+      particleCount: 190,
       color: 0xc8cca5,
       size: 0.091,
       rotationSpeed: 0.00105,
@@ -148,7 +148,7 @@ export class SaturnoService {
     {
       innerRadius: 1.97,
       outerRadius: 2.075,
-      particleCount: 256,
+      particleCount: 186,
       color: 0xffffff,
       size: 0.195,
       rotationSpeed: 0.00102,

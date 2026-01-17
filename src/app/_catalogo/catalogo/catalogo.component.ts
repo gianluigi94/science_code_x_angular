@@ -41,7 +41,7 @@ export class CatalogoComponent implements OnInit, AfterViewInit, OnDestroy {
     this.locandinaDemo,
   ];
 
-     righeDemo: { idCategoria: string; category: string; posters: string[] }[] = [];
+     righeDemo: { idCategoria: string; category: string; locandine: { src: string; sottotitolo: string }[] }[] = [];
     tipoSelezionato: TipoContenuto = 'film_serie';
 
 
@@ -108,8 +108,13 @@ export class CatalogoComponent implements OnInit, AfterViewInit, OnDestroy {
       const idCategoria = cat?.id_categoria;
       const codice = String(cat?.codice || '');
       const nome = mappaNome[idCategoria] || codice;
-            const posters = mappaLocandine[String(idCategoria)] || [];
-      return { idCategoria: String(idCategoria), category: nome, posters: posters.length ? posters : this.locandineDemo };
+              const locandine = mappaLocandine[String(idCategoria)] || [];
+      const demo = this.locandineDemo.map((src: string) => ({ src, sottotitolo: '' }));
+      return {
+        idCategoria: String(idCategoria),
+        category: nome,
+        locandine: locandine.length ? locandine : demo
+      };
     });
   }
 
@@ -131,8 +136,11 @@ export class CatalogoComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
 
-  costruisciMappaLocandineCategorie(codiceLingua: string, tipo: TipoContenuto): Record<string, string[]> {
-    const raccolta: Record<string, Array<{ slug: string; tipo: string; idContenuto: string }>> = {};
+    costruisciMappaLocandineCategorie(
+    codiceLingua: string,
+    tipo: TipoContenuto
+  ): Record<string, { src: string; sottotitolo: string }[]> {
+    const raccolta: Record<string, Array<{ slug: string; tipo: string; idContenuto: string; sottotitolo: string }>> = {};
 
     for (const r of (this.categorieLocandineDb || [])) {
       if (String(r?.lingua) !== String(codiceLingua)) continue;
@@ -142,13 +150,15 @@ export class CatalogoComponent implements OnInit, AfterViewInit, OnDestroy {
       const slug = String(r?.slug || '');
       const tipoRiga = String(r?.tipo || '');
       const idContenuto = String(r?.id_contenuto || '');
+      const sottotitolo = String(r?.sottotitolo || '');
+
       if (!idCategoria || !slug) continue;
 
       if (!raccolta[idCategoria]) raccolta[idCategoria] = [];
-      raccolta[idCategoria].push({ slug, tipo: tipoRiga, idContenuto });
+      raccolta[idCategoria].push({ slug, tipo: tipoRiga, idContenuto, sottotitolo });
     }
 
-    const mappa: Record<string, string[]> = {};
+    const mappa: Record<string, { src: string; sottotitolo: string }[]> = {};
     for (const idCategoria of Object.keys(raccolta)) {
       const lista = raccolta[idCategoria];
 
@@ -160,7 +170,10 @@ export class CatalogoComponent implements OnInit, AfterViewInit, OnDestroy {
         });
       }
 
-      mappa[idCategoria] = lista.map(x => this.costruisciUrlLocandina(codiceLingua, x.slug));
+            mappa[idCategoria] = lista.map(x => ({
+        src: this.costruisciUrlLocandina(codiceLingua, x.slug),
+        sottotitolo: x.sottotitolo || ''
+      }));
     }
 
     return mappa;
@@ -173,9 +186,9 @@ export class CatalogoComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
 
-    filtraCategoriePerTipo(
+      filtraCategoriePerTipo(
     categorie: any[],
-    mappaLocandine: Record<string, string[]>,
+    mappaLocandine: Record<string, { src: string; sottotitolo: string }[]>,
     tipo: TipoContenuto
   ): any[] {
     if (tipo === 'film_serie') return categorie;

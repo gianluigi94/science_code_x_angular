@@ -9,14 +9,14 @@
      <div
    class="locandina"
    #elementoLocandina
-   *ngFor="let src of locandine; let i = index"
-   (mouseenter)="onMouseEnterLocandina(src)"
+    *ngFor="let p of locandine; let i = index"
+ (mouseenter)="onMouseEnterLocandina(p)"
    (mouseleave)="onMouseLeaveLocandina()"
  >
       <span class="numero">{{ (indicePagina * locandineVisibili) + i + 1 }}</span>
 
       <div class="sparisci">
-        <img [src]="src" alt="locandina" />
+        <img [src]="p.src" alt="locandina" />
       </div>
 
 
@@ -25,7 +25,7 @@
       <!-- qui sopra puoi aggiungere il tuo "elemento aggiuntivo" quando serve -->
     </div>
 
-    <app-bottone-preferiti [titolo]="src"></app-bottone-preferiti>
+    <app-bottone-preferiti [titolo]="p.src"></app-bottone-preferiti>
 
 
     </div>

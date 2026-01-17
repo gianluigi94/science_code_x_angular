@@ -26,6 +26,7 @@ import { HoverLocandinaService } from '../app-riga-categoria/categoria_services/
   styleUrls: ['./carosello-novita.component.scss'],
 })
 export class CaroselloNovitaComponent implements OnInit, OnDestroy, AfterViewInit {
+  RITARDO_EXTRA_COPERTURA_DOPO_MOSTRA_VIDEO_MS = 120;
   durataUscitaCoperturaHoverMs = 220;
   pausaPerHover = false;
        hoverAttivo = false;
@@ -34,10 +35,18 @@ export class CaroselloNovitaComponent implements OnInit, OnDestroy, AfterViewIni
   timerMinimoCoperturaHover: any = null;
   durataMinimaCoperturaHoverMs = 700;
   idHover = 0;
+    ritardoNascondiPlayMs = 150;
+  ritardoMostraPlayMs = 150;
+  timerIconaPlay: any = null;
+  mostraIconaPlay = true;
+   ritardoNascondiComandiMs = 150;
+ ritardoMostraComandiMs = 150;
+ timerComandi: any = null;
+ mostraComandi = true;
    immagineHoverFissa = 'assets/carosello_locandine/carosello_abbraccia_il_vento.webp';
   alTop = true; // Tengo traccia se sono 'in cima' alla pagina (stato iniziale: sì)
   pausaPerScroll = false; // Segno se devo mettere in pausa per via dello scroll (inizialmente no)
-  SCROLL_THRESHOLD = 10; // Imposto la soglia (in px) entro cui considero la pagina 'in cima'
+  SCROLL_THRESHOLD = 80; // Imposto la soglia (in px) entro cui considero la pagina 'in cima'
   timerAutoscroll: any = null; // Mi tengo il riferimento al timer dell'autoscroll (per poterlo fermare/reset)
   INTERVALLO_AUTOSCROLL_MS = 6200; // Definisco ogni quanti ms far scattare l'autoscroll
   pausaPerBlur = false; // Segno se sono in pausa perché la finestra ha perso il focus (blur)
@@ -57,6 +66,15 @@ export class CaroselloNovitaComponent implements OnInit, OnDestroy, AfterViewIni
   sottotitoloVisibile = true; // Decido se il sottotitolo è visibile (stato iniziale: sì)
   durataFadeTitoliMs = 200; // Imposto la durata del fade dei titoli
   pausaNeroTitoliMs = 50; // Imposto la pausa di 'nero' tra fade out e nuovo contenuto
+
+    percentualeAvanzamento = 0;
+  percentualeBuffer = 0;
+  durataTotaleMs = 0;
+  posizioneCorrenteMs = 0;
+  tempoCorrenteTesto = '00:00';
+  durataTotaleTesto = '00:00';
+  gestoreAggiornaTempo: any = null;
+  gestoreAggiornaBuffer: any = null;
 
   private timerFadeTitolo: any = null; // Tengo il timer del fade del titolo per poterlo annullare se serve
   private timerImpostaTitolo: any = null; // Tengo il timer che imposta il nuovo titolo dopo l'attesa
@@ -143,11 +161,18 @@ export class CaroselloNovitaComponent implements OnInit, OnDestroy, AfterViewIni
 
 
      this.subs.add(
-             this.servizioHoverLocandina.osserva().subscribe((slug) => {
-                if (slug) {
+              this.servizioHoverLocandina.osserva().subscribe((info) => {
+   if (info?.slug) {
+    this.pianificaIconaPlay(false);
+    this.pianificaComandi(false);
+     const slug = info.slug;
+     const sottotitolo = info.sottotitolo || '';
           const tokenHover = ++this.idHover;
           this.hoverAttivo = true;
           this.pausaPerHover = true;
+
+
+          this.aggiornaTitoliPerHover(slug, sottotitolo, tokenHover);
 
           if (!this.alTop) this.fermaAutoscroll();
           this.fermaAvvioPendete();
@@ -171,12 +196,16 @@ export class CaroselloNovitaComponent implements OnInit, OnDestroy, AfterViewIni
         }
 
         // uscita hover
+        this.pianificaIconaPlay(true);
+        this.pianificaComandi(true);
       const tokenUscita = ++this.idHover;
  this.hoverAttivo = false;
  this.pausaPerHover = false;
  this.mostraCoperturaHover = false;
  this.immagineHoverFissa = '';
  this.azzeraTimerCoperturaHover();
+
+ this.ripristinaTitoliDaCarosello(tokenUscita);
 
  this.fermaAvvioPendete();
  this.numeroSequenzaAvvio++;
@@ -189,6 +218,7 @@ export class CaroselloNovitaComponent implements OnInit, OnDestroy, AfterViewIni
    })
    .finally(() => {
      if (tokenUscita !== this.idHover) return;
+     try { this.collegaFineTrailer(); } catch {}
 
      if (this.alTop && !this.pausaPerScroll && !this.pausaPerBlur) {
        this.avviaTrailerCorrenteDopo(this.RITARDO_MOSTRA_PLAYER_MS);
@@ -290,6 +320,14 @@ export class CaroselloNovitaComponent implements OnInit, OnDestroy, AfterViewIni
  * @returns void
  */
   ngOnDestroy(): void {
+        if (this.timerIconaPlay) {
+      clearTimeout(this.timerIconaPlay);
+      this.timerIconaPlay = null;
+    }
+       if (this.timerComandi) {
+     clearTimeout(this.timerComandi);
+     this.timerComandi = null;
+   }
     this.fermaAvvioPendete(); // Fermo eventuali avvii trailer pendenti (timer/sequence)
     this.fermaAutoscroll(); // Fermo l'autoscroll e resetto il relativo timer
 
@@ -316,7 +354,7 @@ export class CaroselloNovitaComponent implements OnInit, OnDestroy, AfterViewIni
       // Provo a distruggere il player video senza far fallire la teardown
       if (this.player) this.player.dispose(); // Smonto il player
     } catch {}
-
+    this.scollegaAggiornamentoBarra();
     this.subs.unsubscribe(); // Disiscrivo tutte le subscription RxJS registrate
   }
 
@@ -796,7 +834,7 @@ export class CaroselloNovitaComponent implements OnInit, OnDestroy, AfterViewIni
     }
   }
 
-  nascondiCoperturaHoverSeConsentito(tokenHover: number): void {
+  nascondiCoperturaHoverSeConsentito(tokenHover: number, ritardoExtraMs: number = 0): void {
       const eseguiUscita = () => {
     if (tokenHover !== this.idHover) return;
 
@@ -804,8 +842,20 @@ export class CaroselloNovitaComponent implements OnInit, OnDestroy, AfterViewIni
   };
     const trascorsi = Date.now() - this.istanteInizioCoperturaHover;
     if (trascorsi >= this.durataMinimaCoperturaHoverMs) {
-         eseguiUscita();
-    return;
+               // anche se ho gia' "finito" il minimo, aspetta ancora un attimo per far comparire il player sotto
+      if ((ritardoExtraMs || 0) <= 0) { eseguiUscita(); return; }
+      this.azzeraTimerCoperturaHover();
+      this.timerMinimoCoperturaHover = setTimeout(() => {
+        this.timerMinimoCoperturaHover = null;
+              // finito il minimo, ma lascio ancora un attimo extra per far "accendere" il player sotto
+      const extra = Math.max(0, ritardoExtraMs || 0);
+      if (extra <= 0) { eseguiUscita(); return; }
+      this.timerMinimoCoperturaHover = setTimeout(() => {
+        this.timerMinimoCoperturaHover = null;
+        eseguiUscita();
+      }, extra);
+      }, Math.max(0, ritardoExtraMs));
+      return;
     }
     const residuo = this.durataMinimaCoperturaHoverMs - trascorsi;
     this.azzeraTimerCoperturaHover();
@@ -830,10 +880,26 @@ export class CaroselloNovitaComponent implements OnInit, OnDestroy, AfterViewIni
     try { this.player.pause(); } catch {}
     try { this.player.currentTime(0); } catch {}
 
+   this.player.on('ended', () => {
+     if (tokenHover !== this.idHover || !this.hoverAttivo) return;
+     this.mostraVideo = false;
+     if (this.immagineHoverFissa) {
+       this.mostraCoperturaHover = true;
+       this.istanteInizioCoperturaHover = Date.now();
+       this.azzeraTimerCoperturaHover();
+     }
+     this.sfumaGuadagnoVerso(0, this.durataFadeAudioMs).finally(() => {
+       if (tokenHover !== this.idHover || !this.hoverAttivo) return;
+       try { this.player.pause(); } catch {}
+       try { this.player.currentTime(0); } catch {}
+     });
+   });
+
     try {
       this.player.src({ src: urlTrailer, type: 'video/mp4' });
       try { this.player.load?.(); } catch {}
       this.applicaAttributiVideoReale();
+      this.resetBarraAvanzamento();
     } catch {
       return;
     }
@@ -865,7 +931,10 @@ export class CaroselloNovitaComponent implements OnInit, OnDestroy, AfterViewIni
             }
           } catch {}
           this.sfumaGuadagnoVerso(1, this.durataFadeAudioMs);
-          this.nascondiCoperturaHoverSeConsentito(tokenHover);
+                this.nascondiCoperturaHoverSeConsentito(
+        tokenHover,
+        this.RITARDO_EXTRA_COPERTURA_DOPO_MOSTRA_VIDEO_MS
+      );
         });
 
         try {
@@ -920,4 +989,235 @@ export class CaroselloNovitaComponent implements OnInit, OnDestroy, AfterViewIni
       const prefisso = lang === 'it' ? 'ita' : 'en';
   return `https://d2kd3i5q9rl184.cloudfront.net/mp4-trailer-${lang}/trailer_${prefisso}_${slug}.mp4`;
   }
+
+
+    private linguaTitoli(): 'it' | 'en' {
+    const lingua = (this.translate?.currentLang || 'it').toLowerCase();
+    return lingua.startsWith('en') ? 'en' : 'it';
+  }
+
+  private urlTitoloDaSlug(slug: string): string {
+    const lang = this.linguaTitoli();
+    return `assets/titoli_${lang}/titolo_${lang}_${slug}.webp`;
+  }
+
+  private precaricaImmagine(url: string): Promise<boolean> {
+    if (!url) return Promise.resolve(false);
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => resolve(true);
+      img.onerror = () => resolve(false);
+      img.src = url;
+    });
+  }
+
+  private datiOverlayDaSlug(slug: string): { titolo: string; sottotitolo: string; imgTitolo: string } {
+    const info = this.mappaNovitaCorrente?.[slug];
+    const titolo = info?.titolo || slug || '';
+    const sottotitolo = info?.sottotitolo || 'sottotitolo provisorio';
+    const imgTitolo = info?.img_titolo || this.urlTitoloDaSlug(slug);
+    return { titolo, sottotitolo, imgTitolo };
+  }
+
+  private applicaOverlayConAnimazione(dati: { titolo: string; sottotitolo: string; imgTitolo: string }, token: number): void {
+    this.idCambioTitoli++;
+    if (this.timerFadeTitolo) clearTimeout(this.timerFadeTitolo);
+    if (this.timerImpostaTitolo) clearTimeout(this.timerImpostaTitolo);
+    const tokenTitoli = this.idCambioTitoli;
+
+    this.titoloVisibile = false;
+    this.sottotitoloVisibile = false;
+
+    const attesaFadeOut = new Promise<void>((r) => setTimeout(() => r(), this.durataFadeTitoliMs));
+    const attesaImmagine = this.precaricaImmagine(dati.imgTitolo);
+
+    Promise.all([attesaFadeOut, attesaImmagine]).then(() => {
+      if (token !== this.idHover) return;
+      if (tokenTitoli !== this.idCambioTitoli) return;
+
+      this.titoloOverlay = dati.titolo;
+      this.sottotitoloOverlay = dati.sottotitolo;
+      this.imgTitoloOverlay = dati.imgTitolo;
+
+      this.timerImpostaTitolo = setTimeout(() => {
+        if (token !== this.idHover) return;
+        if (tokenTitoli !== this.idCambioTitoli) return;
+        this.titoloVisibile = true;
+        this.sottotitoloVisibile = true;
+      }, this.pausaNeroTitoliMs);
+    });
+  }
+
+   aggiornaTitoliPerHover(slug: string, sottotitolo: string, tokenHover: number): void {
+   const dati = {
+     titolo: '', // non ti serve
+     sottotitolo: sottotitolo || '',
+     imgTitolo: this.urlTitoloDaSlug(slug)
+   };
+   this.applicaOverlayConAnimazione(dati, tokenHover);
+ }
+  aggiornaIconaPlayDaStato(): void {
+    this.pianificaIconaPlay(!!(this.alTop && !this.hoverAttivo));
+  }
+  ripristinaTitoliDaCarosello(tokenUscita: number): void {
+    const indiceReale = this.getIndiceRealeZeroBased();
+    const chiave = this.descrizioni?.[indiceReale] || '';
+    const info = this.mappaNovitaCorrente?.[chiave];
+    const dati = {
+      titolo: info?.titolo || this.titoloOverlay || '',
+      sottotitolo: info?.sottotitolo || this.sottotitoloOverlay || '',
+      imgTitolo: info?.img_titolo || this.imgTitoloOverlay || ''
+    };
+    this.applicaOverlayConAnimazione(dati, tokenUscita);
+  }
+  pianificaIconaPlay(daMostrare: boolean): void {
+    if (this.timerIconaPlay) {
+      clearTimeout(this.timerIconaPlay);
+      this.timerIconaPlay = null;
+    }
+    const ms = daMostrare ? this.ritardoMostraPlayMs : this.ritardoNascondiPlayMs;
+    this.timerIconaPlay = setTimeout(() => {
+      this.timerIconaPlay = null;
+      this.mostraIconaPlay = !!(daMostrare && !this.hoverAttivo && this.alTop);
+    }, Math.max(0, ms || 0));
+  }
+
+   pianificaComandi(daMostrare: boolean): void {
+   if (this.timerComandi) {
+     clearTimeout(this.timerComandi);
+     this.timerComandi = null;
+   }
+   const ms = daMostrare ? this.ritardoMostraComandiMs : this.ritardoNascondiComandiMs;
+   this.timerComandi = setTimeout(() => {
+     this.timerComandi = null;
+     this.mostraComandi = !!(daMostrare && !this.hoverAttivo);
+   }, Math.max(0, ms || 0));
+ }
+
+   collegaAggiornamentoBarra(): void {
+    try {
+      if (!this.player) return;
+      this.gestoreAggiornaTempo = () => {
+        const corrente = this.secondiCorrentiSicuri();
+        const durata = this.durataInSecondiSicura();
+        this.aggiornaBarraDaValori(corrente, durata);
+      };
+      this.gestoreAggiornaBuffer = () => {
+        const durata = this.durataInSecondiSicura();
+        this.aggiornaBufferDaElementi(durata);
+      };
+      this.player.on('timeupdate', this.gestoreAggiornaTempo);
+      this.player.on('seeking', this.gestoreAggiornaTempo);
+      this.player.on('loadedmetadata', this.gestoreAggiornaBuffer);
+      this.player.on('durationchange', this.gestoreAggiornaBuffer);
+      this.player.on('progress', this.gestoreAggiornaBuffer);
+    } catch {}
+  }
+
+  scollegaAggiornamentoBarra(): void {
+    try {
+      if (!this.player) return;
+      if (this.gestoreAggiornaTempo) {
+        this.player.off('timeupdate', this.gestoreAggiornaTempo);
+        this.player.off('seeking', this.gestoreAggiornaTempo);
+      }
+      if (this.gestoreAggiornaBuffer) {
+        this.player.off('loadedmetadata', this.gestoreAggiornaBuffer);
+        this.player.off('durationchange', this.gestoreAggiornaBuffer);
+        this.player.off('progress', this.gestoreAggiornaBuffer);
+      }
+    } catch {}
+    this.gestoreAggiornaTempo = null;
+    this.gestoreAggiornaBuffer = null;
+  }
+
+  resetBarraAvanzamento(): void {
+    this.percentualeAvanzamento = 0;
+    this.percentualeBuffer = 0;
+    this.durataTotaleMs = 0;
+    this.posizioneCorrenteMs = 0;
+    this.tempoCorrenteTesto = '00:00';
+    this.durataTotaleTesto = '00:00';
+  }
+
+  aggiornaBarraDaValori(correnteSec: number, durataSec: number): void {
+    if (!isFinite(durataSec) || durataSec <= 0) {
+      this.percentualeAvanzamento = 0;
+      this.posizioneCorrenteMs = 0;
+      this.durataTotaleMs = 0;
+      this.tempoCorrenteTesto = '00:00';
+      this.durataTotaleTesto = '00:00';
+      return;
+    }
+    const clampCorr = Math.max(0, Math.min(correnteSec, durataSec));
+    this.percentualeAvanzamento = (clampCorr / durataSec) * 100;
+    this.posizioneCorrenteMs = Math.round(clampCorr * 1000);
+    this.durataTotaleMs = Math.round(durataSec * 1000);
+    this.tempoCorrenteTesto = this.formattaMinutiSecondi(clampCorr);
+    this.durataTotaleTesto = this.formattaMinutiSecondi(durataSec);
+  }
+
+  aggiornaBufferDaElementi(durataSec: number): void {
+    try {
+      const el = this.ottieniElementoVideoReale();
+      if (!el || !isFinite(durataSec) || durataSec <= 0) {
+        this.percentualeBuffer = 0;
+        return;
+      }
+      let fineBuffer = 0;
+      if (el.buffered && el.buffered.length > 0) {
+        fineBuffer = el.buffered.end(el.buffered.length - 1);
+      }
+      const perc = Math.max(0, Math.min(100, (fineBuffer / durataSec) * 100));
+      this.percentualeBuffer = perc;
+    } catch {
+      this.percentualeBuffer = 0;
+    }
+  }
+
+  secondiCorrentiSicuri(): number {
+    try {
+      return typeof this.player.currentTime === 'function'
+        ? Number(this.player.currentTime())
+        : 0;
+    } catch {
+      return 0;
+    }
+  }
+
+  durataInSecondiSicura(): number {
+    try {
+      return typeof this.player.duration === 'function'
+        ? Number(this.player.duration())
+        : 0;
+    } catch {
+      return 0;
+    }
+  }
+
+  formattaMinutiSecondi(sec: number): string {
+    const s = Math.max(0, Math.floor(sec));
+    const m = Math.floor(s / 60);
+    const r = s % 60;
+    const mm = m.toString().padStart(2, '0');
+    const ss = r.toString().padStart(2, '0');
+    return `${mm}:${ss}`;
+  }
+
+  saltaAConClick(evento: MouseEvent): void {
+    try {
+      if (!this.player) return;
+      const target = evento.currentTarget as HTMLElement;
+      if (!target) return;
+      const rett = target.getBoundingClientRect();
+      const x = Math.min(Math.max(evento.clientX - rett.left, 0), rett.width);
+      const frazione = rett.width > 0 ? x / rett.width : 0;
+      const durata = this.durataInSecondiSicura();
+      if (!isFinite(durata) || durata <= 0) return;
+      const nuoviSec = frazione * durata;
+      try { this.player.currentTime(nuoviSec); } catch {}
+      this.aggiornaBarraDaValori(nuoviSec, durata);
+    } catch {}
+  }
+
 }

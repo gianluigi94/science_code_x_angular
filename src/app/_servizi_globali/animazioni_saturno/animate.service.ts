@@ -439,7 +439,7 @@ private getTitoloAltoConfig(): {
   } else if (window.innerWidth <= 1200) {
     leftValue = 15;
   } else if (window.innerWidth <= 1500) {
-    leftValue = 10;
+    leftValue = 30;
   } else {
     leftValue = 25;
   }
@@ -464,7 +464,7 @@ private getTitoloAltoConfig(): {
   } else if (window.innerWidth <= 1000) {
     topValue = 8;
   } else {
-    topValue = 12;
+    topValue = 10;
   }
 
   const softOffset = ((1 - scaleValue) * 100) / 2;
