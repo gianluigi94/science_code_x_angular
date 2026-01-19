@@ -23,8 +23,13 @@ export class CatalogoComponent implements OnInit, AfterViewInit, OnDestroy {
     public servizioAnimazioni: AnimazioniScomparsaService
   ) {}
 
-  sottoscrizioni = new Subscription();
+   tickAggiornamentoRighe = 0;
+ tickResetPagine = 0;
 
+  saltaAnimazioniUnaVolta = false;
+  sottoscrizioni = new Subscription();
+  idCicloRighe = 0;
+  timerCambioTipo: any = 0;
   categorieDb: any[] = [];
   categorieTraduzioniDb: any[] = [];
   categorieLocandineDb: any[] = [];
@@ -52,6 +57,10 @@ export class CatalogoComponent implements OnInit, AfterViewInit, OnDestroy {
   ngAfterViewInit(): void {
     this.servizioAnimazioni.inizializzaAnimazioni(this.righeCatalogo);
     this.righeCatalogo.changes.subscribe(() => {
+            if (this.saltaAnimazioniUnaVolta) {
+        this.saltaAnimazioniUnaVolta = false;
+        return;
+      }
       this.servizioAnimazioni.inizializzaAnimazioni(this.righeCatalogo);
     });
   }
@@ -67,14 +76,16 @@ export class CatalogoComponent implements OnInit, AfterViewInit, OnDestroy {
 
     this.sottoscrizioni.add(
       this.cambioLingua.cambioLinguaApplicata$.subscribe(() => {
+        this.saltaAnimazioniUnaVolta = true;
         this.ricostruisciRighe();
       })
     );
-        this.sottoscrizioni.add(
+       this.sottoscrizioni.add(
       this.tipoContenuto.tipoSelezionato$.subscribe((tipo) => {
         this.tipoSelezionato = tipo;
-        this.ricostruisciRighe();
+        this.tickResetPagine += 1;
         this.forzaRottaCatalogoDaTipo();
+        this.avviaCambioTipoConAttese();
       })
     );
   }
@@ -82,6 +93,22 @@ export class CatalogoComponent implements OnInit, AfterViewInit, OnDestroy {
   ngOnDestroy(): void {
     this.sottoscrizioni.unsubscribe();
     try { this.servizioAnimazioni.disconnettiOsservatori(); } catch {}
+    if (this.timerCambioTipo) { clearTimeout(this.timerCambioTipo); this.timerCambioTipo = 0; }
+  }
+
+    avviaCambioTipoConAttese(): void {
+    if (this.timerCambioTipo) { clearTimeout(this.timerCambioTipo); this.timerCambioTipo = 0; }
+
+    this.idCicloRighe += 1;
+    const id = this.idCicloRighe;
+
+    this.tipoContenuto.notificaCambioTipoAvviato(this.tipoSelezionato, id);
+
+    // 1 secondo TUTTO coperto prima di iniziare la ricostruzione
+    this.timerCambioTipo = setTimeout(() => {
+      this.timerCambioTipo = 0;
+      this.ricostruisciRighe(id, true);
+    }, 100);
   }
 
   caricaCategorieDaDb(): void {
@@ -97,14 +124,15 @@ export class CatalogoComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
-  ricostruisciRighe(): void {
+    ricostruisciRighe(idForzato: number = 0, notificaTipoApplicato: boolean = false): void {
+    const id = idForzato ? idForzato : (++this.idCicloRighe);
     const codiceLingua = this.cambioLingua.leggiCodiceLingua(); // 'it' | 'en'
     const mappaNome = this.costruisciMappaNomeCategorie(codiceLingua);
     const mappaLocandine = this.costruisciMappaLocandineCategorie(codiceLingua, this.tipoSelezionato);
 
        const categorieFiltrate = this.filtraCategoriePerTipo(this.categorieDb || [], mappaLocandine, this.tipoSelezionato);
 
-    this.righeDemo = categorieFiltrate.map((cat: any) => {
+    const nuoveRighe = categorieFiltrate.map((cat: any) => {
       const idCategoria = cat?.id_categoria;
       const codice = String(cat?.codice || '');
       const nome = mappaNome[idCategoria] || codice;
@@ -115,6 +143,15 @@ export class CatalogoComponent implements OnInit, AfterViewInit, OnDestroy {
         category: nome,
         locandine: locandine.length ? locandine : demo
       };
+    });
+
+    this.precaricaImmaginiRighe(nuoveRighe).then(() => {
+      if (id !== this.idCicloRighe) return;
+      this.aggiornaRigheInPlace(nuoveRighe);
+      this.tickAggiornamentoRighe += 1;
+            if (notificaTipoApplicato) {
+        this.tipoContenuto.notificaCambioTipoApplicato(this.tipoSelezionato, id);
+      }
     });
   }
 
@@ -236,4 +273,66 @@ export class CatalogoComponent implements OnInit, AfterViewInit, OnDestroy {
     costruisciUrlLocandina(codiceLingua: string, slug: string): string {
     return `assets/locandine_${codiceLingua}/locandina_${codiceLingua}_${slug}.webp`;
   }
+
+    precaricaImmaginiRighe(
+    righe: { locandine: { src: string; sottotitolo: string }[] }[]
+  ): Promise<void> {
+    const urls: string[] = [];
+    for (const r of (righe || [])) {
+      for (const p of (r.locandine || [])) {
+        const u = String(p?.src || '');
+        if (u) urls.push(u);
+      }
+    }
+    if (!urls.length) return Promise.resolve();
+
+    const promesse = urls.map(u =>
+      new Promise<void>(resolve => {
+        const img = new Image();
+        img.onload = () => resolve();
+        img.onerror = () => resolve();
+        (img as any).decode
+          ? (img as any).decode().then(() => resolve()).catch(() => resolve())
+          : (img.src = u);
+        img.src = u;
+      })
+    );
+    return Promise.all(promesse).then(() => {});
+  }
+
+  aggiornaRigheInPlace(
+  nuoveRighe: { idCategoria: string; category: string; locandine: { src: string; sottotitolo: string }[] }[]
+): void {
+  const mappaEsistenti: Record<string, any> = {};
+  for (const r of (this.righeDemo || [])) mappaEsistenti[String(r.idCategoria)] = r;
+
+  const ordine: any[] = [];
+  for (const n of nuoveRighe) {
+    const idCat = String(n.idCategoria);
+    const r = mappaEsistenti[idCat] || { idCategoria: idCat, category: '', locandine: [] };
+    r.category = n.category;
+    this.aggiornaLocandineInPlace(r.locandine, n.locandine);
+    ordine.push(r);
+  }
+
+  // IMPORTANT: tengo lo stesso array reference
+  this.righeDemo.splice(0, this.righeDemo.length, ...ordine);
+}
+
+aggiornaLocandineInPlace(
+  target: { src: string; sottotitolo: string }[],
+  sorgente: { src: string; sottotitolo: string }[]
+): void {
+  const t = target || [];
+  const s = sorgente || [];
+
+  // allinea lunghezza senza cambiare reference
+  while (t.length < s.length) t.push({ src: '', sottotitolo: '' });
+  if (t.length > s.length) t.splice(s.length);
+
+  for (let i = 0; i < s.length; i++) {
+    t[i].src = s[i].src;
+    t[i].sottotitolo = s[i].sottotitolo || '';
+  }
+}
 }

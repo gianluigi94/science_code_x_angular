@@ -19,6 +19,7 @@ import { CaroselloPlayerUtility } from './carosello_utility/carosello-player.uti
 import { CaroselloScrollStateUtility } from './carosello_utility/carosello-scroll-state.utility';
 import { CaroselloCopertureUtility } from './carosello_utility/carosello-coperture.utility';
 import { HoverLocandinaService } from '../app-riga-categoria/categoria_services/hover-locandina.service';
+import { AudioGlobaleService } from 'src/app/_servizi_globali/audio-globale.service';
 
 @Component({
   selector: 'app-carosello-novita',
@@ -115,7 +116,8 @@ export class CaroselloNovitaComponent implements OnInit, OnDestroy, AfterViewIni
   nodoSorgente: any = null; // Tengo il nodo sorgente (MediaElementSource) collegato al video
   nodoGuadagno: any = null; // Tengo il nodo GainNode per gestire volume e fade
   elementoVideoReale: any = null; // Salvo il riferimento al vero elemento <video> dentro il player
-  audioConsentito = false; // Segno se l'audio e' consentito (policy autoplay / interazione utente)
+  audioConsentito = false; // Segno se l'audio e' consentito
+  audioUtenteConsentito = true;
 
   sbloccoAudioAttivo = false; // Segno se ho gia' attivato la logica di sblocco audio su interazione
   sbloccaAudioBinding: any = null; // Mi salvo la funzione handler per rimuovere l'event listener dopo l'uso
@@ -143,6 +145,7 @@ export class CaroselloNovitaComponent implements OnInit, OnDestroy, AfterViewIni
     private caroselloNovitaService: CaroselloNovitaService,
     private cambioLinguaService: CambioLinguaService,
     private translate: TranslateService,
+    public audioGlobale: AudioGlobaleService,
     private caricamentoCaroselloService: CaricamentoCaroselloService,
     private servizioHoverLocandina: HoverLocandinaService
   ) {}
@@ -159,6 +162,13 @@ export class CaroselloNovitaComponent implements OnInit, OnDestroy, AfterViewIni
   ngOnInit(): void {
     this.caricaDati(); // Avvio il caricamento dati iniziali
 
+
+    this.subs.add(
+      this.audioGlobale.statoAudio$.subscribe((val) => {
+        this.audioUtenteConsentito = !!val;
+        this.applicaPreferenzaAudioAlPlayer(this.audioUtenteConsentito);
+      })
+    );
 
      this.subs.add(
               this.servizioHoverLocandina.osserva().subscribe((info) => {
@@ -937,6 +947,12 @@ export class CaroselloNovitaComponent implements OnInit, OnDestroy, AfterViewIni
       );
         });
 
+        if (!this.audioUtenteConsentito) {
+  try { this.impostaMuteReale(true); } catch {}
+  try { this.player.play(); } catch {}
+  return;
+}
+
         try {
           this.impostaMuteReale(false);
           const p = this.player.play();
@@ -1220,4 +1236,56 @@ export class CaroselloNovitaComponent implements OnInit, OnDestroy, AfterViewIni
     } catch {}
   }
 
+    applicaPreferenzaAudioAlPlayer(consentito: boolean): void {
+    if (!this.player) return;
+
+    // Se non devo riprodurre in questo stato, mi limito a settare mute/gain coerenti
+    if (!this.alTop || this.pausaPerScroll || this.pausaPerBlur || this.pausaPerHover) {
+      try { this.impostaMuteReale(!consentito); } catch {}
+      try { this.sfumaGuadagnoVerso(consentito ? 1 : 0, 120); } catch {}
+      return;
+    }
+
+    if (!consentito) {
+      // Utente NON vuole audio: tengo mutato e porto il gain a 0 (cosi' l'unmute futuro e' sempre in fade)
+      this.sfumaGuadagnoVerso(0, this.durataFadeAudioMs).finally(() => {
+        try { this.impostaMuteReale(true); } catch {}
+      });
+      return;
+    }
+
+    // Utente vuole audio: provo smuto  play (se il browser blocca -> resto mutato e segnalo solo blocco)
+    try {
+      if (this.contestoAudio && this.contestoAudio.state === 'suspended') {
+        this.contestoAudio.resume().catch(() => {});
+      }
+    } catch {}
+
+    try { this.sfumaGuadagnoVerso(0, 0); } catch {}
+    try { this.impostaMuteReale(false); } catch {}
+
+    try {
+      const p = this.player.play();
+      if (p && typeof p.then === 'function') {
+        p.then(() => {
+          this.audioGlobale.setSoloBrowserBlocca(false);
+          this.audioConsentito = true;
+          this.sfumaGuadagnoVerso(1, this.durataFadeAudioMs);
+        }).catch(() => {
+          this.audioGlobale.setSoloBrowserBlocca(true);
+          try { this.impostaMuteReale(true); } catch {}
+          try { this.sfumaGuadagnoVerso(0, 0); } catch {}
+        });
+      } else {
+        // fallback: se non ho promise, provo fade-in comunque
+        this.audioGlobale.setSoloBrowserBlocca(false);
+        this.audioConsentito = true;
+        this.sfumaGuadagnoVerso(1, this.durataFadeAudioMs);
+      }
+    } catch {
+      this.audioGlobale.setSoloBrowserBlocca(true);
+      try { this.impostaMuteReale(true); } catch {}
+      try { this.sfumaGuadagnoVerso(0, 0); } catch {}
+    }
+  }
 }

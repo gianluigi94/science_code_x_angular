@@ -12,8 +12,9 @@
   align-items: center;
   justify-content: center;
   transform-style: preserve-3d;
-  transform: rotatex(55deg);
-  border-radius: 8px;
+    border-radius: 8px;
+    will-change: transform;
+  transform: rotatex(55deg) translateZ(0);
 }
 
 .spinner {
@@ -22,7 +23,8 @@
   height: 100%;
   transform-box: fill-box;
   transform-origin: center center;
-  animation: gira-spinner 1.6s linear infinite;
+    animation: gira-spinner 1.15s linear infinite;
+  will-change: transform;
 }
 
 .cls-1 {

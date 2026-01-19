@@ -220,7 +220,7 @@ export class CaroselloVideoUtility {
       // Aggancio un handler one-shot quando il player entra davvero in playing
       if (token !== ctx.numeroSequenzaAvvio) return; // Esco se il token non e' piu' valido
       if (!ctx.alTop || ctx.pausaPerScroll || ctx.pausaPerBlur) return; // Esco se nel frattempo non posso riprodurre
-      ctx.audioConsentito = true; // Considero l'audio 'consentito' da quando la riproduzione e' realmente partita
+      if (ctx.audioUtenteConsentito) ctx.audioConsentito = true;
       try {
         // Provo a riprendere l'AudioContext se e' sospeso
         if (ctx.contestoAudio && ctx.contestoAudio.state === 'suspended') {
@@ -228,25 +228,32 @@ export class CaroselloVideoUtility {
           ctx.contestoAudio.resume().catch(() => {}); // Provo a fare resume senza bloccare e ignorando errori
         }
       } catch {} // Ignoro errori di resume per non bloccare
-      CaroselloAudioUtility.sfumaGuadagnoVerso(ctx, 1, ctx.durataFadeAudioMs); // Faccio fade-in del guadagno verso 1
+        if (ctx.audioUtenteConsentito) {
+    CaroselloAudioUtility.sfumaGuadagnoVerso(ctx, 1, ctx.durataFadeAudioMs);
+  } else {
+    CaroselloAudioUtility.sfumaGuadagnoVerso(ctx, 0, 0);
+  }
     });
 
     // tenta play con audio; se non permesso -> fallback mutato + sblocco (come prima) // Elimino il commento vecchio mantenendo la logica sotto
-    try {
-      // Provo a partire con audio non mutato
-      CaroselloAudioUtility.impostaMuteReale(ctx, false); // Tolgo il mute reale prima del play
-      const p = ctx.player.play(); // Avvio la riproduzione e intercetto l'eventuale Promise
-      if (p && typeof p.then === 'function') {
-        // Se play() ritorna una Promise, posso gestire il fallimento
-        p.catch(() => {
-          // Se l'autoplay con audio e' bloccato
-          CaroselloAudioUtility.avviaMutatoConOpzioneSblocco(ctx, true); // Ripiego su avvio mutato con opzione sblocco audio
-        });
-      }
-    } catch {
-      // Se play() o mute lanciano eccezione
-      CaroselloAudioUtility.avviaMutatoConOpzioneSblocco(ctx, true); // Ripiego su avvio mutato con opzione sblocco audio
+  // Se l'utente NON vuole audio: parto mutato e basta (niente forzature, niente sblocco)
+if (!ctx.audioUtenteConsentito) {
+  CaroselloAudioUtility.impostaMuteReale(ctx, true);
+  try { ctx.player.play(); } catch {}
+} else {
+  // Utente vuole audio: come prima (provo audio, fallback mutato  sblocco)
+  try {
+    CaroselloAudioUtility.impostaMuteReale(ctx, false);
+    const p = ctx.player.play();
+    if (p && typeof p.then === 'function') {
+      p.catch(() => {
+        CaroselloAudioUtility.avviaMutatoConOpzioneSblocco(ctx, true);
+      });
     }
+  } catch {
+    CaroselloAudioUtility.avviaMutatoConOpzioneSblocco(ctx, true);
+  }
+}
 
     if (!okCanPlay) ctx.pianificaControlloStallo(token); // Se canplay non e' arrivato entro timeout, pianifico un controllo stallo
   }

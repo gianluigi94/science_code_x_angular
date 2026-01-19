@@ -6,17 +6,28 @@
 
   <div class="fascia-carosello" [style.transform]="trasformazioneWrapper">
 
-     <div
+ <div
    class="locandina"
    #elementoLocandina
-    *ngFor="let p of locandine; let i = index"
- (mouseenter)="onMouseEnterLocandina(p)"
+   *ngFor="let p of locandine; let i = index; trackBy: tracciaLocandina"
+   (mouseenter)="onMouseEnterLocandina(p)"
    (mouseleave)="onMouseLeaveLocandina()"
  >
       <span class="numero">{{ (indicePagina * locandineVisibili) + i + 1 }}</span>
 
       <div class="sparisci">
-        <img [src]="p.src" alt="locandina" />
+        <img
+   [src]="p.src"
+   alt="locandina"
+   (load)="immagineStabilizzata()"
+   (error)="immagineStabilizzata()"
+ />
+   <span class="carica_img" [class.visibile]="mostraSpinner">
+   <div class="spinner_spinner">
+     <span class="ring1"></span>
+     <span class="ring2"></span>
+   </div>
+ </span>
       </div>
 
 

@@ -42,9 +42,8 @@ app-riga-categoria {
   display: block;
   will-change: opacity, transform;
   transform-origin: center center;
-  // pointer-events: none !important;
 }
 
-// #locandine_container {
-//    pointer-events: none !important;
-//  }
+#locandine_container {
+  margin-bottom: 20px;
+ }
