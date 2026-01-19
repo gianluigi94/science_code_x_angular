@@ -18,7 +18,8 @@ import { CaroselloAudioUtility } from './carosello_utility/carosello-audio.utili
 import { CaroselloPlayerUtility } from './carosello_utility/carosello-player.utility';
 import { CaroselloScrollStateUtility } from './carosello_utility/carosello-scroll-state.utility';
 import { CaroselloCopertureUtility } from './carosello_utility/carosello-coperture.utility';
-import { HoverLocandinaService } from '../app-riga-categoria/categoria_services/hover-locandina.service';
+ import { HoverLocandinaService } from '../app-riga-categoria/categoria_services/hover-locandina.service';
+ import { AudioGlobaleService } from 'src/app/_servizi_globali/audio-globale.service';
 
 @Component({
   selector: 'app-carosello-novita',
@@ -29,6 +30,8 @@ export class CaroselloNovitaComponent implements OnInit, OnDestroy, AfterViewIni
   guadagnoDesiderato = 1;
   RITARDO_EXTRA_COPERTURA_DOPO_MOSTRA_VIDEO_MS = 120;
   durataUscitaCoperturaHoverMs = 220;
+  audioPreferito = true; // true se l'utente vuole audio (da storage), false = forza muto
+  slugHoverAttuale = '';
   pausaPerHover = false;
        hoverAttivo = false;
   mostraCoperturaHover = false;
@@ -117,7 +120,7 @@ export class CaroselloNovitaComponent implements OnInit, OnDestroy, AfterViewIni
   nodoGuadagno: any = null; // Tengo il nodo GainNode per gestire volume e fade
   elementoVideoReale: any = null; // Salvo il riferimento al vero elemento <video> dentro il player
   audioConsentito = false; // Segno se l'audio e' consentito (policy autoplay / interazione utente)
-
+  forzaMuto = false;
   sbloccoAudioAttivo = false; // Segno se ho gia' attivato la logica di sblocco audio su interazione
   sbloccaAudioBinding: any = null; // Mi salvo la funzione handler per rimuovere l'event listener dopo l'uso
 
@@ -145,7 +148,8 @@ export class CaroselloNovitaComponent implements OnInit, OnDestroy, AfterViewIni
     private cambioLinguaService: CambioLinguaService,
     private translate: TranslateService,
     private caricamentoCaroselloService: CaricamentoCaroselloService,
-    private servizioHoverLocandina: HoverLocandinaService
+        private servizioHoverLocandina: HoverLocandinaService,
+    private audioGlobale: AudioGlobaleService
   ) {}
 
 /**
@@ -161,12 +165,45 @@ export class CaroselloNovitaComponent implements OnInit, OnDestroy, AfterViewIni
     this.caricaDati(); // Avvio il caricamento dati iniziali
 
 
+    this.audioPreferito = this.audioGlobale.leggiAudioAttivo();
+    this.subs.add(
+      this.audioGlobale.leggiAudioAttivo$().subscribe((attivo) => {
+                        const precedente = !!this.audioPreferito;
+        const nuovo = !!attivo;
+        const cambiato = nuovo !== precedente;
+        this.audioPreferito = nuovo;
+
+        if (!cambiato) return;
+
+        // SOLO se vado da muto -> audio: ricarico il trailer corrente
+        if (!precedente && nuovo) {
+          this.riavviaTrailerCorrentePerCambioAudio();
+          return;
+        }
+
+        // Se vado da audio -> muto: niente reload, continuo ma muto subito
+        if (precedente && !nuovo) {
+                    try { this.forzaMuto = true; } catch {}
+          this.audioConsentito = false;
+
+          // fade-out prima, poi muto reale (cosi non "taglia" di colpo)
+          this.sfumaGuadagnoVerso(0, this.durataFadeAudioMs).finally(() => {
+            // applico il mute reale solo se sono ancora in modalita' muto
+            if (!this.audioPreferito) {
+              try { this.impostaMuteReale(true); } catch {}
+            }
+          });
+        }
+      })
+    );
+
      this.subs.add(
               this.servizioHoverLocandina.osserva().subscribe((info) => {
    if (info?.slug) {
     this.pianificaIconaPlay(false);
     this.pianificaComandi(false);
      const slug = info.slug;
+     this.slugHoverAttuale = slug;
      const sottotitolo = info.sottotitolo || '';
           const tokenHover = ++this.idHover;
           this.hoverAttivo = true;
@@ -185,6 +222,8 @@ export class CaroselloNovitaComponent implements OnInit, OnDestroy, AfterViewIni
           this.precaricaImmagineHover(urlHover, tokenHover);
 
           this.mostraVideo = false;
+
+
 
           this.sfumaGuadagnoVerso(0, this.durataFadeAudioMs).finally(() => {
             if (tokenHover !== this.idHover || !this.hoverAttivo) return;
@@ -938,20 +977,25 @@ export class CaroselloNovitaComponent implements OnInit, OnDestroy, AfterViewIni
       );
         });
 
-        try {
-          this.impostaMuteReale(false);
-          const p = this.player.play();
-          if (p && typeof p.then === 'function') {
-            p.catch(() => {
-              this.impostaMuteReale(true);
-              try { this.player.play(); } catch {}
-            });
-          }
-        } catch {
+             if (!this.audioPreferito) {
+          try { this.impostaMuteReale(true); } catch {}
+          try { this.player.play(); } catch {}
+        } else {
           try {
-            this.impostaMuteReale(true);
-            this.player.play();
-          } catch {}
+            this.impostaMuteReale(false);
+            const p = this.player.play();
+            if (p && typeof p.then === 'function') {
+              p.catch(() => {
+                this.impostaMuteReale(true);
+                try { this.player.play(); } catch {}
+              });
+            }
+          } catch {
+            try {
+              this.impostaMuteReale(true);
+              this.player.play();
+            } catch {}
+          }
         }
       });
     });
@@ -1221,4 +1265,37 @@ export class CaroselloNovitaComponent implements OnInit, OnDestroy, AfterViewIni
     } catch {}
   }
 
+    riavviaTrailerCorrentePerCambioAudio(): void {
+    if (!this.player) return;
+
+   // se sono in hover: ricarico lo stesso trailer hover con le nuove regole (muto/audio)
+    if (this.hoverAttivo && this.slugHoverAttuale) {
+      const token = ++this.idHover;
+      const url = this.urlTrailerHoverDaSlug(this.slugHoverAttuale);
+
+            // tengo il wrapper visibile: la copertura maschera il video durante il reload
+      this.mostraVideo = true;
+
+      // copertura immediata (poster/locandina) per mascherare l'assenza di video
+      const urlCopertura = this.urlLocandinaDaSlug(this.slugHoverAttuale);
+      this.immagineHoverFissa = urlCopertura;
+      this.mostraCoperturaHover = true;
+      this.istanteInizioCoperturaHover = Date.now();
+      this.azzeraTimerCoperturaHover();
+
+      this.sfumaGuadagnoVerso(0, this.durataFadeAudioMs).finally(() => {
+        if (token !== this.idHover || !this.hoverAttivo) return;
+        try { this.player.pause(); } catch {}
+        try { this.player.currentTime(0); } catch {}
+        this.avviaTrailerHoverFisso(url, token);
+      });
+      return;
+    }
+
+    // se non posso riprodurre (scroll/blur/non-top), non forzo nulla: si applichera' al prossimo avvio
+    if (!this.alTop || this.pausaPerScroll || this.pausaPerBlur) return;
+
+    // ricarico il trailer "normale" della slide corrente
+    CaroselloVideoUtility.riavviaTrailerCorrentePerCambioAudio(this);
+  }
 }

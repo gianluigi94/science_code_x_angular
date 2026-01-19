@@ -215,12 +215,18 @@ export class CaroselloVideoUtility {
       ctx.mostraVideo = false; // Nascondo il video se non posso riprodurre
       return; // Esco senza avviare
     }
+        const forzaMuto = !ctx.audioPreferito;
+    ctx.forzaMuto = forzaMuto;
 
     ctx.player.one('playing', () => {
       // Aggancio un handler one-shot quando il player entra davvero in playing
       if (token !== ctx.numeroSequenzaAvvio) return; // Esco se il token non e' piu' valido
       if (!ctx.alTop || ctx.pausaPerScroll || ctx.pausaPerBlur) return; // Esco se nel frattempo non posso riprodurre
-      ctx.audioConsentito = true; // Considero l'audio 'consentito' da quando la riproduzione e' realmente partita
+      if (ctx.forzaMuto) {
+        ctx.audioConsentito = false;
+        return; // niente fade-in audio
+      }
+      ctx.audioConsentito = true;
       try {
         // Provo a riprendere l'AudioContext se e' sospeso
         if (ctx.contestoAudio && ctx.contestoAudio.state === 'suspended') {
@@ -232,20 +238,21 @@ export class CaroselloVideoUtility {
     });
 
     // tenta play con audio; se non permesso -> fallback mutato + sblocco (come prima) // Elimino il commento vecchio mantenendo la logica sotto
-    try {
-      // Provo a partire con audio non mutato
-      CaroselloAudioUtility.impostaMuteReale(ctx, false); // Tolgo il mute reale prima del play
-      const p = ctx.player.play(); // Avvio la riproduzione e intercetto l'eventuale Promise
-      if (p && typeof p.then === 'function') {
-        // Se play() ritorna una Promise, posso gestire il fallimento
-        p.catch(() => {
-          // Se l'autoplay con audio e' bloccato
-          CaroselloAudioUtility.avviaMutatoConOpzioneSblocco(ctx, true); // Ripiego su avvio mutato con opzione sblocco audio
-        });
+      if (forzaMuto) {
+      CaroselloAudioUtility.impostaMuteReale(ctx, true);
+      try { ctx.player.play(); } catch {}
+    } else {
+      try {
+        CaroselloAudioUtility.impostaMuteReale(ctx, false);
+        const p = ctx.player.play();
+        if (p && typeof p.then === 'function') {
+          p.catch(() => {
+            CaroselloAudioUtility.avviaMutatoConOpzioneSblocco(ctx, true);
+          });
+        }
+      } catch {
+        CaroselloAudioUtility.avviaMutatoConOpzioneSblocco(ctx, true);
       }
-    } catch {
-      // Se play() o mute lanciano eccezione
-      CaroselloAudioUtility.avviaMutatoConOpzioneSblocco(ctx, true); // Ripiego su avvio mutato con opzione sblocco audio
     }
 
     if (!okCanPlay) ctx.pianificaControlloStallo(token); // Se canplay non e' arrivato entro timeout, pianifico un controllo stallo
@@ -300,6 +307,10 @@ export class CaroselloVideoUtility {
  * @returns void
  */
   static tentaAutoplayConAudio(ctx: any): void {
+        if (!ctx.audioPreferito) {
+      CaroselloAudioUtility.avviaMutatoConOpzioneSblocco(ctx, false);
+      return;
+    }
     // Provo ad avviare il video con audio (se le policy del browser lo permettono)
     try {
       // Provo la strategia con audio, gestendo eventuali eccezioni
@@ -342,5 +353,26 @@ export class CaroselloVideoUtility {
       // Se qualsiasi parte della strategia con audio lancia eccezione
       CaroselloAudioUtility.avviaMutatoConOpzioneSblocco(ctx, true); // Ripiego su avvio mutato con opzione di sblocco
     }
+  }
+
+    /**
+   * Riavvia il trailer corrente quando cambia la preferenza audio (toggle).
+   * Obiettivo: applicare subito muto/audio ricaricando il video corrente.
+   */
+  static riavviaTrailerCorrentePerCambioAudio(ctx: any): void {
+    if (!ctx.player) return;
+    if (!ctx.trailers || ctx.trailers.length === 0) return;
+    if (!ctx.alTop || ctx.pausaPerScroll || ctx.pausaPerBlur || ctx.pausaPerHover) return;
+
+    ctx.mostraVideo = false;
+    CaroselloVideoUtility.fermaAvvioPendete(ctx);
+
+    CaroselloAudioUtility.sfumaGuadagnoVerso(ctx, 0, ctx.durataFadeAudioMs).finally(() => {
+      try { ctx.player.pause(); } catch {}
+      try { ctx.player.currentTime(0); } catch {}
+
+      // riavvio immediato: applichera' le nuove regole (forzaMuto / fallback / ecc.)
+      CaroselloVideoUtility.avviaTrailerCorrenteDopo(ctx, 0);
+    });
   }
 }
