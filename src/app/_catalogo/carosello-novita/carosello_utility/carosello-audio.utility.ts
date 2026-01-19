@@ -14,6 +14,7 @@ export class CaroselloAudioUtility {
     return new Promise((resolve) => {
       // Incapsulo la sfumatura in una Promise
       try {
+        try { ctx.guadagnoDesiderato = target; } catch {}
         // Provo a usare WebAudio se disponibile
         if (!ctx.contestoAudio || !ctx.nodoGuadagno) {  // Se non ho contesto o nodo guadagno, non posso sfumare
           return resolve(); // Risolvo subito senza fare nulla
@@ -122,7 +123,7 @@ export class CaroselloAudioUtility {
 
       ctx.audioConsentito = true; // Considero l'audio 'consentito' dopo un click valido
 
-      ctx.mostraVideo = false; // Nascondo il video mentre faccio reset e riavvio con audio
+      const sonoInHover = !!(ctx.hoverAttivo && ctx.pausaPerHover);
 
       try {
         // Provo a fermare avvii pendenti prima del riavvio
@@ -136,7 +137,33 @@ export class CaroselloAudioUtility {
           ctx.contestoAudio.resume().catch(() => {}); // Provo resume senza bloccare
         }
       } catch {} // Ignoro errori
+          if (sonoInHover) {
+      // In hover NON devo riavvolgere e NON devo chiamare avviaTrailerCorrenteDopo(0),
+      // perche' verrebbe bloccato da pausaPerHover e mi sparisce il player.
+      try { CaroselloAudioUtility.inizializzaWebAudioSuVideoReale(ctx); } catch {}
+      try { CaroselloAudioUtility.impostaMuteReale(ctx, false); } catch {}
+      try { ctx.mostraVideo = true; } catch {}
+           try {
+        // restart del trailer hover: rewind  play
+        try { CaroselloAudioUtility.sfumaGuadagnoVerso(ctx, 0, 0); } catch {}
+        try { ctx.player?.pause?.(); } catch {}
+        try { ctx.player?.currentTime?.(0); } catch {}
 
+        try {
+          // quando riparte davvero, faccio fade-in
+          ctx.player?.one?.('playing', () => {
+            try { ctx.mostraVideo = true; } catch {}
+            try { CaroselloAudioUtility.sfumaGuadagnoVerso(ctx, 1, ctx.durataFadeAudioMs); } catch {}
+          });
+        } catch {}
+
+        const p = ctx.player?.play?.();
+        if (p && typeof p.catch === 'function') p.catch(() => {});
+      } catch {}
+      return;
+    }
+
+    ctx.mostraVideo = false;
       try {
         // Provo a impostare subito il gain a 0 per ripartire pulito
         CaroselloAudioUtility.sfumaGuadagnoVerso(ctx, 0, 0); // Porto il guadagno a zero in modo immediato
@@ -330,7 +357,8 @@ export class CaroselloAudioUtility {
       ); // Creo una sorgente WebAudio dal media element
       ctx.nodoGuadagno = ctx.contestoAudio.createGain(); // Creo un GainNode per controllare il volume e fare fade
       try {
-        ctx.nodoGuadagno.gain.setValueAtTime(1, ctx.contestoAudio.currentTime);
+                const iniziale = typeof ctx.guadagnoDesiderato === 'number' ? ctx.guadagnoDesiderato : 1;
+        ctx.nodoGuadagno.gain.setValueAtTime(iniziale, ctx.contestoAudio.currentTime);
       } catch {} // Inizializzo il guadagno a 1 (volume pieno)
 
       ctx.nodoSorgente

@@ -1,10 +1,12 @@
 <!-- semplice html dell bottone audio al click lo disattivo/attivo e cambio l'icona aggiungendo/rimuovendo la sbarra -->
 
 <button
+    type="button"
   class="bottone-audio"
-  (click)="alClic()"
-  aria-label="ddd"
-  [attr.aria-pressed]="!attivo"
+  (click)="onToggleAudio()"
+  [attr.aria-label]="audioAttivo ? 'Disattiva audio' : 'Attiva audio'"
+  [attr.aria-pressed]="audioAttivo"
+
 >
   <div class="contenitore-icona" aria-hidden="true">
     <!-- svg dell'audio -->
@@ -14,6 +16,6 @@
       <path d="M14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-1 7-4.71 7-8.77s-2.99-7.77-7-8.77z"></path>
     </svg>
     <!-- sbarra realizzata con un after -->
-    <div class="sbarra" *ngIf="!attivo" aria-hidden="true"></div>
+    <div class="sbarra" [class.visibile]="!audioAttivo"></div>
   </div>
 </button>

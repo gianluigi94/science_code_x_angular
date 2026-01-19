@@ -1,32 +1,31 @@
-import { Component, OnDestroy, OnInit } from '@angular/core';
-import { Subscription } from 'rxjs';
-import { AudioGlobaleService } from './../../_servizi_globali/audio-globale.service';
+import { Component, OnDestroy } from '@angular/core';
+import { Subject, takeUntil } from 'rxjs';
+import { AudioGlobaleService } from 'src/app/_servizi_globali/audio-globale.service';
 
 @Component({
   selector: 'app-bottone-audio',
   templateUrl: './bottone-audio.component.html',
   styleUrls: ['./bottone-audio.component.scss'],
 })
-export class BottoneAudioComponent implements OnInit, OnDestroy {
-  attivo = false;
-  sottoscrizioneStato: Subscription | null = null;
+export class BottoneAudioComponent implements OnDestroy {
+  audioAttivo = true; // default senza sbarra
+  distruggi$ = new Subject<void>();
 
-  constructor(public audioGlobale: AudioGlobaleService) {}
+  constructor(private audioGlobale: AudioGlobaleService) {
+    this.audioGlobale
+      .leggiAudioAttivo$()
+      .pipe(takeUntil(this.distruggi$))
+      .subscribe((attivo) => {
+        this.audioAttivo = attivo;
+      });
+  }
 
-  ngOnInit(): void {
-    this.sottoscrizioneStato = this.audioGlobale.statoAudio$.subscribe(val => {
-      this.attivo = val;
-    });
+  onToggleAudio() {
+    this.audioGlobale.toggleAudio();
   }
 
   ngOnDestroy(): void {
-    if (this.sottoscrizioneStato) {
-      try { this.sottoscrizioneStato.unsubscribe(); } catch {}
-      this.sottoscrizioneStato = null;
-    }
-  }
-
-  alClic(): void {
-    this.audioGlobale.toggle();
+    this.distruggi$.next();
+    this.distruggi$.complete();
   }
 }

@@ -26,6 +26,7 @@ import { HoverLocandinaService } from '../app-riga-categoria/categoria_services/
   styleUrls: ['./carosello-novita.component.scss'],
 })
 export class CaroselloNovitaComponent implements OnInit, OnDestroy, AfterViewInit {
+  guadagnoDesiderato = 1;
   RITARDO_EXTRA_COPERTURA_DOPO_MOSTRA_VIDEO_MS = 120;
   durataUscitaCoperturaHoverMs = 220;
   pausaPerHover = false;

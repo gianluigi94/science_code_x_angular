@@ -144,10 +144,7 @@ export class HeaderComponent implements OnDestroy {
    *
    * @returns void
    */
-  clickSbloccoProvvisorio(): void {
-    if (this.logoutInCorso) return; // se sto facendo logout, evito qualsiasi azione
-    this.solo_brawser_blocca = false; // disattivo il blocco provvisorio sul browser
-  }
+
 
   /**
    * Gestisce il comando di scollegamento dell'utente.

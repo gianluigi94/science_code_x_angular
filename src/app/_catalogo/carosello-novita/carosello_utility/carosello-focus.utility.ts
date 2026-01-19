@@ -24,6 +24,7 @@ export class CaroselloFocusUtility {
     ctx.numeroSequenzaAvvio++; // Invalido eventuali avvii in corso incrementando la sequenza
 
     ctx.mostraVideo = false; // Nascondo il video durante la pausa per blur
+    try { ctx.inizializzaWebAudioSuVideoReale(); } catch {}
 
     ctx.sfumaGuadagnoVerso(0, ctx.durataFadeAudioMs).finally(() => { // Faccio fade-out audio e poi fermo/resetto il video
       try { ctx.player.pause(); } catch {} // Provo a mettere in pausa senza rompere se il player non e' pronto

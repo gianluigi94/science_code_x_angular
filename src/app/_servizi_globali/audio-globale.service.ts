@@ -1,62 +1,42 @@
 import { Injectable } from '@angular/core';
-import { BehaviorSubject } from 'rxjs';
+import { BehaviorSubject, Observable } from 'rxjs';
 
 @Injectable({ providedIn: 'root' })
 export class AudioGlobaleService {
-  chiaveStorage = 'audio_consentito';
-  valorePredefinito = true;
-  statoCorrente = this.valorePredefinito;
-  sorgenteStato = new BehaviorSubject<boolean>(false);
-  statoAudio$ = this.sorgenteStato.asObservable();
- solo_brawser_blocca = false;
+  CHIAVE_STORAGE = 'audio_consentito';
+  statoAudioAttivo$ = new BehaviorSubject<boolean>(this.leggiDaStorage()); // coerente all'avvio
 
-  constructor() {
-    const iniziale = this.leggiDaStorage();
-    this.statoCorrente = iniziale;
-    this.sorgenteStato.next(iniziale);
-
-    window.addEventListener('storage', (evento) => {
-      if (evento.key === this.chiaveStorage) {
-        const nuovo = evento.newValue === 'true';
-        this.statoCorrente = nuovo;
-        this.sorgenteStato.next(nuovo);
-      }
-    });
-   const sbloccaDopoPrimoGesto = () => this.setSoloBrowserBlocca(false);
-   window.addEventListener('pointerdown', sbloccaDopoPrimoGesto, { once: true });
-   window.addEventListener('keydown',      sbloccaDopoPrimoGesto, { once: true });
-   window.addEventListener('touchstart',   sbloccaDopoPrimoGesto, { once: true });
-  }
-  private sorgenteSoloBlocca = new BehaviorSubject<boolean>(false);
-  soloBlocca$ = this.sorgenteSoloBlocca.asObservable();
-   leggiDaStorage(): boolean {
-     try {
-      const v = localStorage.getItem(this.chiaveStorage);
-      if (v === 'true' || v === 'false') return v === 'true';
-      localStorage.setItem(this.chiaveStorage, String(this.valorePredefinito));
-      return this.valorePredefinito;
-     } catch {
-      return this.valorePredefinito;
-     }
-   }
-
-  salvaSuStorage(valore: boolean): void {
-    try { localStorage.setItem(this.chiaveStorage, String(valore)); } catch {}
+  leggiDaStorage(): boolean {
+    try {
+      const v = localStorage.getItem(this.CHIAVE_STORAGE);
+      if (v === null) return true; // default: consentito
+      return v === 'true';
+    } catch {
+      return true;
+    }
   }
 
-  imposta(consentito: boolean): void {
-    this.statoCorrente = consentito;
-    this.salvaSuStorage(consentito);
-    this.sorgenteStato.next(consentito);
-    if (consentito) this.setSoloBrowserBlocca(false);
+  scriviSuStorage(attivo: boolean) {
+    try {
+      localStorage.setItem(this.CHIAVE_STORAGE, attivo ? 'true' : 'false');
+    } catch {}
+  }
+  leggiAudioAttivo$(): Observable<boolean> {
+    return this.statoAudioAttivo$.asObservable();
   }
 
-  toggle(): void {
-    this.imposta(!this.statoCorrente);
+  leggiAudioAttivo(): boolean {
+    return this.statoAudioAttivo$.value;
   }
 
-    setSoloBrowserBlocca(v: boolean): void {
-    this.solo_brawser_blocca = v;
-    this.sorgenteSoloBlocca.next(v);
+  impostaAudioAttivo(attivo: boolean) {
+    this.statoAudioAttivo$.next(attivo);
+    this.scriviSuStorage(attivo);
+  }
+
+  toggleAudio() {
+        const nuovo = !this.statoAudioAttivo$.value;
+    this.statoAudioAttivo$.next(nuovo);
+    this.scriviSuStorage(nuovo);
   }
 }
