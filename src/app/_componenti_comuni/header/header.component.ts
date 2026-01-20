@@ -13,6 +13,7 @@ import { ErroreGlobaleService } from 'src/app/_servizi_globali/errore-globale.se
 import { ApiService } from 'src/app/_servizi_globali/api.service';
 import { TipoContenuto, TipoContenutoService } from 'src/app/_catalogo/app-riga-categoria/categoria_services/tipo-contenuto.service';
 import { Location } from '@angular/common';
+import { AudioGlobaleService } from 'src/app/_servizi_globali/audio-globale.service';
 @Component({
   selector: 'app-header',
   templateUrl: './header.component.html',
@@ -25,7 +26,8 @@ export class HeaderComponent implements OnDestroy {
   menuTipoAperto = false; // mi segno se il menu tipo contenuto è aperto
   linguaInCambio: boolean = false; // mi segno se sto eseguendo un cambio lingua (per bloccare interazioni e mostrare spinner)
 
-  solo_brawser_blocca = true; // capisco se è solo l'audio bloccato dall brawser e non dall'utente
+    audioAttivo$!: Observable<boolean>;
+  browserBlocca$!: Observable<boolean>;
   disabilitaLingua = false; // mi imposto se devo disabilitare il cambio lingua in UI
 
   authCorrente: Auth | null = null; // mi salvo lo stato di autenticazione reale corrente (o null se non loggato)
@@ -49,11 +51,14 @@ export class HeaderComponent implements OnDestroy {
     cambioLinguaService: CambioLinguaService,
     private translate: TranslateService,
     private http: HttpClient,
+    public audioGlobale: AudioGlobaleService,
     private location: Location,
     private tipoContenuto: TipoContenutoService,
     private statoSessione: StatoSessioneClientService,
     private erroreGlobale: ErroreGlobaleService
   ) {
+        this.audioAttivo$ = this.audioGlobale.leggiAudioAttivo$();
+    this.browserBlocca$ = this.audioGlobale.leggiBrowserBlocca$();
     this.tipoSelezionato = this.tipoContenuto.leggiTipo();
     this.cambioLinguaService = cambioLinguaService; // mi salvo il servizio di cambio lingua nella proprietà del componente
     this.iconaLingua$ = this.cambioLinguaService.iconaLingua$; // mi aggancio all'evento dell'icona della lingua per mostrarla in modo reattivo

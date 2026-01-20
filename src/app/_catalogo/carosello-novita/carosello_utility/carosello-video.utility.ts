@@ -246,11 +246,15 @@ export class CaroselloVideoUtility {
         CaroselloAudioUtility.impostaMuteReale(ctx, false);
         const p = ctx.player.play();
         if (p && typeof p.then === 'function') {
-          p.catch(() => {
+                  p.then(() => {
+            try { ctx.audioGlobale?.impostaBrowserBlocca(false); } catch {}
+          }).catch(() => {
+            try { ctx.audioGlobale?.impostaBrowserBlocca(true); } catch {}
             CaroselloAudioUtility.avviaMutatoConOpzioneSblocco(ctx, true);
           });
         }
       } catch {
+        try { ctx.audioGlobale?.impostaBrowserBlocca(true); } catch {}
         CaroselloAudioUtility.avviaMutatoConOpzioneSblocco(ctx, true);
       }
     }

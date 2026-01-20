@@ -14,6 +14,8 @@ import { AnimazioniScomparsaService } from 'src/app/_catalogo/app-riga-categoria
   styleUrls: ['./catalogo.component.scss']
 })
 export class CatalogoComponent implements OnInit, AfterViewInit, OnDestroy {
+
+  cinqueElementi = Array(5).fill(0);
     constructor(
     public api: ApiService,
     public tipoContenuto: TipoContenutoService,

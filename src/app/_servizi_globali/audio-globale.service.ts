@@ -5,7 +5,7 @@ import { BehaviorSubject, Observable } from 'rxjs';
 export class AudioGlobaleService {
   CHIAVE_STORAGE = 'audio_consentito';
   statoAudioAttivo$ = new BehaviorSubject<boolean>(this.leggiDaStorage()); // coerente all'avvio
-
+  statoBrowserBlocca$ = new BehaviorSubject<boolean>(false);
   leggiDaStorage(): boolean {
     try {
       const v = localStorage.getItem(this.CHIAVE_STORAGE);
@@ -32,11 +32,21 @@ export class AudioGlobaleService {
   impostaAudioAttivo(attivo: boolean) {
     this.statoAudioAttivo$.next(attivo);
     this.scriviSuStorage(attivo);
+    if (!attivo) this.statoBrowserBlocca$.next(false);
   }
 
   toggleAudio() {
         const nuovo = !this.statoAudioAttivo$.value;
     this.statoAudioAttivo$.next(nuovo);
     this.scriviSuStorage(nuovo);
+    if (!nuovo) this.statoBrowserBlocca$.next(false);
+  }
+
+  leggiBrowserBlocca$(): Observable<boolean> {
+    return this.statoBrowserBlocca$.asObservable();
+  }
+
+  impostaBrowserBlocca(blocca: boolean) {
+    this.statoBrowserBlocca$.next(!!blocca);
   }
 }

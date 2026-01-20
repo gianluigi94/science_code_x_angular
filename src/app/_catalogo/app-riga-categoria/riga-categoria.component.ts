@@ -1,5 +1,7 @@
 import { Component, Input, OnChanges, SimpleChanges } from '@angular/core';
 import { HoverLocandinaService } from './categoria_services/hover-locandina.service';
+import { AudioGlobaleService } from 'src/app/_servizi_globali/audio-globale.service';
+import { Observable } from 'rxjs';
 @Component({
   selector: 'app-riga-categoria',
   templateUrl: './riga-categoria.component.html',
@@ -13,13 +15,20 @@ export class RigaCategoriaComponent implements OnChanges {
   indicePagina = 0;
   numeroMassimoPagine = 0;
   trasformazioneWrapper = '';
-
+    audioAttivo$!: Observable<boolean>;
+  browserBlocca$!: Observable<boolean>;
 ritardoUscitaHoverMs = 160;
      ritardoHoverMs = 380;
   timerEntrata: any = null;
   hoverConfermato = false;
   slugHoverInAttesa = '';
-   constructor(public servizioHoverLocandina: HoverLocandinaService) {}
+     constructor(
+    public servizioHoverLocandina: HoverLocandinaService,
+    public audioGlobale: AudioGlobaleService
+  ) {
+    this.audioAttivo$ = this.audioGlobale.leggiAudioAttivo$();
+    this.browserBlocca$ = this.audioGlobale.leggiBrowserBlocca$();
+  }
 
   ngOnChanges(_changes: SimpleChanges): void {
     this.calcolaNumeroMassimoPagine();

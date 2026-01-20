@@ -980,20 +980,28 @@ export class CaroselloNovitaComponent implements OnInit, OnDestroy, AfterViewIni
              if (!this.audioPreferito) {
           try { this.impostaMuteReale(true); } catch {}
           try { this.player.play(); } catch {}
-        } else {
+                } else {
           try {
             this.impostaMuteReale(false);
             const p = this.player.play();
             if (p && typeof p.then === 'function') {
-              p.catch(() => {
+                            p.then(() => {
+                try { this.audioGlobale?.impostaBrowserBlocca(false); } catch {}
+              }).catch(() => {
+                try { this.audioGlobale?.impostaBrowserBlocca(true); } catch {}
                 this.impostaMuteReale(true);
                 try { this.player.play(); } catch {}
+                // se il browser ha bloccato l'audio: al prossimo click lo sblocco sul trailer corrente
+                try { this.preparaSbloccoAudioSuInterazione(); } catch {}
               });
             }
           } catch {
             try {
+              try { this.audioGlobale?.impostaBrowserBlocca(true); } catch {}
               this.impostaMuteReale(true);
               this.player.play();
+              // idem fallback sync
+              try { this.preparaSbloccoAudioSuInterazione(); } catch {}
             } catch {}
           }
         }

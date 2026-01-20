@@ -353,7 +353,6 @@ header {
       height: 100%;
       pointer-events: none;
 
-      // sbarra rossa in diagonale per indicare disattivato
       &::after {
         content: "";
         position: absolute;

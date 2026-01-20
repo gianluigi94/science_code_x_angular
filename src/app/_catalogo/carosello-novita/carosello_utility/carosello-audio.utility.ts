@@ -88,6 +88,9 @@ export class CaroselloAudioUtility {
  * @returns void
  */
   static avviaMutatoConOpzioneSblocco( ctx: any, consentiSblocco: boolean ): void {// Ripiego su play mutato e preparo (se richiesto) lo sblocco audio su interazione
+        try {
+      if (ctx.audioPreferito) ctx.audioGlobale?.impostaBrowserBlocca(true);
+    } catch {}
     try {
       // Provo in modo safe
       CaroselloAudioUtility.impostaMuteReale(ctx, true); // Attivo il mute reale prima di partire
@@ -122,7 +125,7 @@ export class CaroselloAudioUtility {
       CaroselloAudioUtility.rimuoviAscoltoSbloccoAudio(ctx); // Rimuovo subito i listener per non ripetere tentativi
 
       ctx.audioConsentito = true; // Considero l'audio 'consentito' dopo un click valido
-
+      try { ctx.audioGlobale?.impostaBrowserBlocca(false); } catch {}
       const sonoInHover = !!(ctx.hoverAttivo && ctx.pausaPerHover);
 
       try {
@@ -138,25 +141,34 @@ export class CaroselloAudioUtility {
         }
       } catch {} // Ignoro errori
           if (sonoInHover) {
-      // In hover NON devo riavvolgere e NON devo chiamare avviaTrailerCorrenteDopo(0),
-      // perche' verrebbe bloccato da pausaPerHover e mi sparisce il player.
+      // In hover voglio: sblocco  RIAVVOLGIMENTO e ripartenza del trailer hover corrente (senza usare avviaTrailerCorrenteDopo).
+      try { ctx.forzaMuto = false; } catch {}
+      try { ctx.audioConsentito = true; } catch {}
+
+      try {
+        if (ctx.contestoAudio && ctx.contestoAudio.state === 'suspended') {
+          ctx.contestoAudio.resume().catch(() => {});
+        }
+      } catch {}
+
       try { CaroselloAudioUtility.inizializzaWebAudioSuVideoReale(ctx); } catch {}
       try { CaroselloAudioUtility.impostaMuteReale(ctx, false); } catch {}
       try { ctx.mostraVideo = true; } catch {}
-           try {
-        // restart del trailer hover: rewind  play
-        try { CaroselloAudioUtility.sfumaGuadagnoVerso(ctx, 0, 0); } catch {}
-        try { ctx.player?.pause?.(); } catch {}
-        try { ctx.player?.currentTime?.(0); } catch {}
 
-        try {
-          // quando riparte davvero, faccio fade-in
-          ctx.player?.one?.('playing', () => {
-            try { ctx.mostraVideo = true; } catch {}
-            try { CaroselloAudioUtility.sfumaGuadagnoVerso(ctx, 1, ctx.durataFadeAudioMs); } catch {}
-          });
-        } catch {}
+      try { CaroselloAudioUtility.sfumaGuadagnoVerso(ctx, 0, 0); } catch {}
+      try { ctx.player?.pause?.(); } catch {}
+      try { ctx.player?.currentTime?.(0); } catch {}
 
+      try {
+        ctx.player?.one?.('playing', () => {
+          try {
+            if (!ctx.hoverAttivo || !ctx.pausaPerHover) return;
+            CaroselloAudioUtility.sfumaGuadagnoVerso(ctx, 1, ctx.durataFadeAudioMs);
+          } catch {}
+        });
+      } catch {}
+
+      try {
         const p = ctx.player?.play?.();
         if (p && typeof p.catch === 'function') p.catch(() => {});
       } catch {}
