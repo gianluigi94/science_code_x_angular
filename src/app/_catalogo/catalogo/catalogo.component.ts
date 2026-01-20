@@ -14,7 +14,10 @@ import { AnimazioniScomparsaService } from 'src/app/_catalogo/app-riga-categoria
   styleUrls: ['./catalogo.component.scss']
 })
 export class CatalogoComponent implements OnInit, AfterViewInit, OnDestroy {
-
+  tickAggiornamentoRighe = 0;
+  tickResetPagine = 0;
+  idCicloRighe = 0;
+  timerCambioTipo: any = 0;
   cinqueElementi = Array(5).fill(0);
     constructor(
     public api: ApiService,
@@ -75,7 +78,8 @@ export class CatalogoComponent implements OnInit, AfterViewInit, OnDestroy {
         this.sottoscrizioni.add(
       this.tipoContenuto.tipoSelezionato$.subscribe((tipo) => {
         this.tipoSelezionato = tipo;
-        this.ricostruisciRighe();
+        this.tickResetPagine += 1;
+        this.avviaCambioTipoConAttese();
         this.forzaRottaCatalogoDaTipo();
       })
     );
@@ -84,6 +88,7 @@ export class CatalogoComponent implements OnInit, AfterViewInit, OnDestroy {
   ngOnDestroy(): void {
     this.sottoscrizioni.unsubscribe();
     try { this.servizioAnimazioni.disconnettiOsservatori(); } catch {}
+    if (this.timerCambioTipo) { clearTimeout(this.timerCambioTipo); this.timerCambioTipo = 0; }
   }
 
   caricaCategorieDaDb(): void {
@@ -99,14 +104,15 @@ export class CatalogoComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
-  ricostruisciRighe(): void {
+  ricostruisciRighe(idForzato: number = 0, notificaTipoApplicato: boolean = false): void {
+    const id = idForzato ? idForzato : (++this.idCicloRighe);
     const codiceLingua = this.cambioLingua.leggiCodiceLingua(); // 'it' | 'en'
     const mappaNome = this.costruisciMappaNomeCategorie(codiceLingua);
     const mappaLocandine = this.costruisciMappaLocandineCategorie(codiceLingua, this.tipoSelezionato);
 
        const categorieFiltrate = this.filtraCategoriePerTipo(this.categorieDb || [], mappaLocandine, this.tipoSelezionato);
 
-    this.righeDemo = categorieFiltrate.map((cat: any) => {
+    const nuoveRighe = categorieFiltrate.map((cat: any) => {
       const idCategoria = cat?.id_categoria;
       const codice = String(cat?.codice || '');
       const nome = mappaNome[idCategoria] || codice;
@@ -118,6 +124,15 @@ export class CatalogoComponent implements OnInit, AfterViewInit, OnDestroy {
         locandine: locandine.length ? locandine : demo
       };
     });
+
+      this.precaricaImmaginiRighe(nuoveRighe).then(() => {
+    if (id !== this.idCicloRighe) return;
+    this.aggiornaRigheInPlace(nuoveRighe);
+    this.tickAggiornamentoRighe += 1;
+    if (notificaTipoApplicato) {
+      this.tipoContenuto.notificaCambioTipoApplicato(this.tipoSelezionato, id);
+    }
+  });
   }
 
   costruisciMappaNomeCategorie(codiceLingua: string): Record<string, string> {
@@ -238,4 +253,80 @@ export class CatalogoComponent implements OnInit, AfterViewInit, OnDestroy {
     costruisciUrlLocandina(codiceLingua: string, slug: string): string {
     return `assets/locandine_${codiceLingua}/locandina_${codiceLingua}_${slug}.webp`;
   }
+
+    avviaCambioTipoConAttese(): void {
+    if (this.timerCambioTipo) { clearTimeout(this.timerCambioTipo); this.timerCambioTipo = 0; }
+
+    this.idCicloRighe += 1;
+    const id = this.idCicloRighe;
+
+    this.tipoContenuto.notificaCambioTipoAvviato(this.tipoSelezionato, id);
+
+    // stesso delay del vecchio (100ms)
+    this.timerCambioTipo = setTimeout(() => {
+      this.timerCambioTipo = 0;
+      this.ricostruisciRighe(id, true);
+    }, 100);
+  }
+precaricaImmaginiRighe(
+  righe: { locandine: { src: string; sottotitolo: string }[] }[]
+): Promise<void> {
+  const urls: string[] = [];
+  for (const r of (righe || [])) {
+    for (const p of (r.locandine || [])) {
+      const u = String(p?.src || '');
+      if (u) urls.push(u);
+    }
+  }
+  if (!urls.length) return Promise.resolve();
+
+  const promesse = urls.map(u =>
+    new Promise<void>(resolve => {
+      const img = new Image();
+      img.onload = () => resolve();
+      img.onerror = () => resolve();
+      (img as any).decode
+        ? (img as any).decode().then(() => resolve()).catch(() => resolve())
+        : (img.src = u);
+      img.src = u;
+    })
+  );
+  return Promise.all(promesse).then(() => {});
+}
+
+aggiornaRigheInPlace(
+  nuoveRighe: { idCategoria: string; category: string; locandine: { src: string; sottotitolo: string }[] }[]
+): void {
+  const mappaEsistenti: Record<string, any> = {};
+  for (const r of (this.righeDemo || [])) mappaEsistenti[String(r.idCategoria)] = r;
+
+  const ordine: any[] = [];
+  for (const n of nuoveRighe) {
+    const idCat = String(n.idCategoria);
+    const r = mappaEsistenti[idCat] || { idCategoria: idCat, category: '', locandine: [] };
+    r.category = n.category;
+    this.aggiornaLocandineInPlace(r.locandine, n.locandine);
+    ordine.push(r);
+  }
+
+  // IMPORTANT: tengo lo stesso array reference
+  this.righeDemo.splice(0, this.righeDemo.length, ...ordine);
+}
+
+aggiornaLocandineInPlace(
+  target: { src: string; sottotitolo: string }[],
+  sorgente: { src: string; sottotitolo: string }[]
+): void {
+  const t = target || [];
+  const s = sorgente || [];
+
+  while (t.length < s.length) t.push({ src: '', sottotitolo: '' });
+  if (t.length > s.length) t.splice(s.length);
+
+  for (let i = 0; i < s.length; i++) {
+    t[i].src = s[i].src;
+    t[i].sottotitolo = s[i].sottotitolo || '';
+  }
+}
+
 }

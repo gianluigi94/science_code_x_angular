@@ -276,6 +276,7 @@ export class HeaderComponent implements OnDestroy {
 
   onSelezionaTipo(val: TipoContenuto): void {
     if (this.logoutInCorso) return;
+
     this.tipoSelezionato = val;
     this.menuTipoAperto = false;
     this.tipoContenuto.impostaTipo(val);
