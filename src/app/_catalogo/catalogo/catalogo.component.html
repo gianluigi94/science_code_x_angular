@@ -22,16 +22,15 @@
         #rigaCatalogo
         [categoria]="riga.category"
         [locandine]="riga.locandine"
-          [tickAggiornamento]="tickAggiornamentoRighe"
-  [tickResetPagine]="tickResetPagine"
+        [tickAggiornamento]="tickAggiornamentoRighe"
+        [tickResetPagine]="tickResetPagine"
       >
       </app-riga-categoria>
     </ng-container>
-    <div #sentinella class="sentinella">
+      <div *ngIf="haAltreRighe && !hoFinitoTutto" #sentinella class="sentinella">
     <ng-container *ngFor="let indice of cinqueElementi">
       <app-spinner></app-spinner>
     </ng-container>
-
   </div>
   </section>
   <app-footer></app-footer>
